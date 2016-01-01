@@ -443,6 +443,32 @@ void twinkle() {
   }
 }
 
+void binaryCounter() {
+  const uint32_t black = pixels.Color(0, 0, 0);
+  const uint32_t white = pixels.Color(eepromData.scalered, eepromData.scalegreen, eepromData.scaleblue);
+
+  if (ledModeChanged) {
+    // reset all of the pixels
+    for (int i = 0; i < eepromData.pixelcount; i++)
+      pixels.setPixelColor(i, white);
+    pixels.show();
+    ledModeChanged = false;
+  }
+
+  {
+    int i;
+    for (i = 0; i < eepromData.pixelcount; i++) {
+      if (pixels.getPixelColor(i) == black) {
+        pixels.setPixelColor(i, white);
+        break;
+      }
+    }
+    while (i > 0)
+      pixels.setPixelColor(--i, black);
+    pixels.show();
+  }
+}
+
 void ledLoop() {
 
   switch (ledMode) {
@@ -496,6 +522,9 @@ void ledLoop() {
     break;
   case 13:
     redNightLight();
+    break;
+  case 14:
+    binaryCounter();
     break;
   case 255:
     // network mode - no action
