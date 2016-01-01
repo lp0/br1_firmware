@@ -39,6 +39,11 @@ extern "C" {
 
 #define MAX_PIXELS 1024
 
+#define HUE_MAX 360
+#define HUE_EXP_RANGE 60
+#define HUE_EXP_TIMES 2
+#define HUE_EXP_MAX ((HUE_MAX - HUE_EXP_RANGE) + (HUE_EXP_TIMES * HUE_EXP_RANGE))
+
 const uint8_t irPin = 14;
 const uint8_t buttonPin = 13;
 const uint8_t dataPin = 12;
@@ -261,8 +266,8 @@ uint32_t ledHSV(int h, double s, double v) {
 
   double hf = h / 60.0;
 
-  int i = floor(h / 60.0);
-  double f = h / 60.0 - i;
+  int i = floor(hf);
+  double f = hf - i;
   double pv = v * (1 - s);
   double qv = v * (1 - s * f);
   double tv = v * (1 - s * (1 - f));
@@ -310,6 +315,13 @@ uint32_t ledHSV(int h, double s, double v) {
                       blue * eepromData.scaleblue / 255);
 }
 
+uint32_t ledExpHSV(int h, double s, double v) {
+  if (h < (HUE_EXP_TIMES * HUE_EXP_RANGE))
+    return ledHSV(h / HUE_EXP_TIMES, s, v);
+  else
+    return ledHSV(h - ((HUE_EXP_TIMES - 1) * HUE_EXP_RANGE), s, v);
+}
+
 void hsvFade() {
   static int hue = 0;
   static unsigned long lastChange = 0;
@@ -317,14 +329,11 @@ void hsvFade() {
 
   if (millis() - lastChange > interval) {
     for (int i = 0; i < eepromData.pixelcount; i++) {
-      pixels.setPixelColor(i, ledHSV(hue, 1.0, 1.0));
+      pixels.setPixelColor(i, ledExpHSV(hue, 1.0, 1.0));
     }
     pixels.show();
-    if (hue >= 359) {
-      hue = 0;
-    } else {
-      ++hue;
-    }
+    hue++;
+    hue %= HUE_EXP_MAX;
     lastChange = millis();
   }
 }
@@ -332,7 +341,7 @@ void hsvFade() {
 void hsvStatic() {
 
   for (int i = 0; i < eepromData.pixelcount; i++) {
-    pixels.setPixelColor(i, ledHSV(i * 360 / eepromData.pixelcount, 1.0, 1.0));
+    pixels.setPixelColor(i, ledExpHSV(i * HUE_EXP_MAX / eepromData.pixelcount, 1.0, 1.0));
   }
   pixels.show();
 }
@@ -344,14 +353,11 @@ void hsvScroll() {
 
   if (millis() - lastChange > interval) {
     for (int i = 0; i < eepromData.pixelcount; i++) {
-      pixels.setPixelColor(i, ledHSV(((i * 360 / eepromData.pixelcount) + hue) % 360, 1.0, 1.0));
+      pixels.setPixelColor(i, ledExpHSV(((i * HUE_EXP_MAX / eepromData.pixelcount) + hue) % HUE_EXP_MAX, 1.0, 1.0));
     }
     pixels.show();
-    if (hue > 359) {
-      hue = 0;
-    } else {
-      ++hue;
-    }
+    hue++;
+    hue %= HUE_EXP_MAX;
     lastChange = millis();
   }
 }
