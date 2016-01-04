@@ -54,7 +54,7 @@ const char *wifiModeNames[] = { "STA", "AP", NULL };
 const char *colourOrderNames[] = { "RGB", "RBG", "GRB", "GBR", "BRG", "BGR", NULL };
 const uint16_t colourOrderValues[] = { 6, 9, 82, 88, 161, 164 };
 
-const char *modeNames[] = { "Black", "Red", "Dim red", "Green", "Yellow", "Blue", "Magenta", "Cyan", "White", "HSV Scroll", "HSV Fade", "Christmas (Red and Green)", "Twinkle", "Red night light", NULL };
+const char *modeNames[] = { "Black", "Red", "Dim red", "Green", "Yellow", "Blue", "Magenta", "Cyan", "White", "HSV Scroll", "HSV Fade", "Christmas (Red and Green)", "Twinkle", "Red night light", "Christmas (Work Colours)", NULL };
 
 struct EepromData {
   uint8_t configured;
@@ -455,6 +455,39 @@ void twinkle() {
   }
 }
 
+void christmasWork() {
+  static unsigned long lastChange = 0;
+  unsigned long interval = 200;
+  const uint32_t grey = pixels.Color(74 * eepromData.scalered / 255, 79 * eepromData.scalegreen / 255, 85 * eepromData.scaleblue / 255);
+  const uint32_t red = pixels.Color(194 * eepromData.scalered / 255, 4 * eepromData.scalegreen / 255, 24 * eepromData.scaleblue / 255);
+  const uint32_t lightBlue = pixels.Color(0, 195 * eepromData.scalegreen / 255, 215 * eepromData.scaleblue / 255);
+  const uint32_t darkBlue = pixels.Color(0, 51 * eepromData.scalegreen / 255, 161 * eepromData.scaleblue / 255);
+  const uint32_t colours[4] = { grey, red, lightBlue, darkBlue };
+  const int num_colours = sizeof(colours)/sizeof(uint32_t);
+
+  if (ledModeChanged) {
+    // randomise all of the pixels
+    for (int i = 0; i < eepromData.pixelcount; i++)
+      pixels.setPixelColor(i, colours[random(0, num_colours)]);
+    pixels.show();
+    ledModeChanged = false;
+  }
+
+  if (millis() - lastChange > interval) {
+    int i = random(0, eepromData.pixelcount);
+    int j;
+    int n = colours[random(1, num_colours)];
+    for (int j = 0; j < num_colours; j++) {
+      if (pixels.getPixelColor(i) == colours[j]) {
+        pixels.setPixelColor(i, colours[(j + n) % num_colours]);
+        break;
+      }
+    }
+    pixels.show();
+    lastChange = millis();
+  }
+}
+
 void ledLoop() {
 
   switch (ledMode) {
@@ -508,6 +541,9 @@ void ledLoop() {
     break;
   case 13:
     redNightLight();
+    break;
+  case 14:
+    christmasWork();
     break;
   case 255:
     // network mode - no action
