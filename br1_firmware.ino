@@ -755,10 +755,10 @@ void configUpdateHandler() {
     if (server.argName(i) == "wifimode") {
       eepromData.wifimode = server.arg(i).toInt();
     }
-    eepromData.configured = 1;
-    EEPROM.put(0, eepromData);
-    EEPROM.commit();
   }
+  eepromData.configured = 1;
+  EEPROM.put(0, eepromData);
+  EEPROM.commit();
   server.send(200, "text/html", "<p>Settings updated</p>");
 
   // set first three pixels to Red-Green-Blue using the updated configuration
