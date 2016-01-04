@@ -52,6 +52,8 @@ const unsigned int udpPort = 2812;
 const char *colourOrderNames[] = { "RGB", "RBG", "GRB", "GBR", "BRG", "BGR", NULL };
 const uint16_t colourOrderValues[] = { 6, 9, 82, 88, 161, 164 };
 
+const char *modeNames[] = { "Black", "Red", "Dim red", "Green", "Yellow", "Blue", "Magenta", "Cyan", "White", "HSV Scroll", "HSV Fade", "Christmas (Red and Green)", "Twinkle", "Red night light", NULL };
+
 struct EepromData {
   uint8_t configured;
   char ssid[128];
@@ -74,7 +76,9 @@ boolean ledModeChanged = false;
 uint8_t buttonState = HIGH;
 
 void configuration_mode();
+void run_mode();
 void udpLoop();
+void tcpLoop();
 void ledLoop();
 void singleColour(uint8_t red, uint8_t green, uint8_t blue);
 
@@ -103,17 +107,7 @@ void setup() {
     configuration_mode();
   } else {
     Serial.println("Entering run mode");
-    WiFi.mode(WIFI_STA);
-    WiFi.begin(eepromData.ssid, eepromData.passphrase);
-    pixels.updateType(eepromData.colourorder + NEO_KHZ800);
-    pixels.updateLength(eepromData.pixelcount);
-    pixels.setPin(dataPin);
-    pixels.begin();
-    for (int i = 0; i < eepromData.pixelcount; i++) {
-      pixels.setPixelColor(i, pixels.Color(1, 1, 1));
-    }
-    pixels.show();
-    Udp.begin(udpPort);
+    run_mode();
   }
 }
 
@@ -134,6 +128,7 @@ void loop() {
   }
 
   udpLoop();
+  tcpLoop();
   ledLoop();
 
   uint8_t newButtonState = digitalRead(buttonPin);
@@ -221,6 +216,10 @@ void udpLoop() {
 #endif
     udpMessageHandler(len);
   }
+}
+
+void tcpLoop() {
+  server.handleClient();
 }
 
 void singleColour(uint8_t red, uint8_t green, uint8_t blue) {
@@ -514,6 +513,59 @@ void ledLoop() {
     singleColour(0, 0, 0);
     ledMode = 0;
   }
+}
+
+void runRootHandler() {
+  int i;
+
+  String form = "<!DOCTYPE html>"
+      "<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"></head>"
+      "<form method=\"POST\" action=\"apply\">";
+
+  form += "Mode: <select name=\"ledmode\">";
+  for (i = 0; modeNames[i] != NULL; i++) {
+    form += "<option value=\"";
+    form += i;
+    form += "\"";
+    if (ledMode == i)
+      form += " selected";
+    form += ">";
+    form += modeNames[i];
+    form += "</option>";
+  }
+  form += "</select>";
+
+  form += "<br/>"
+      "<input type=\"submit\"/></form>";
+
+  server.send(200, "text/html", form);
+}
+
+void runUpdateHandler() {
+  for (uint8_t i = 0; i < server.args(); i++) {
+    if (server.argName(i) == "ledmode") {
+      ledMode = server.arg(i).toInt();
+      ledModeChanged = true;
+    }
+  }
+  server.send(200, "text/html", "<!DOCTYPE html><head><meta http-equiv=\"refresh\" content=\"0;URL=/\"></head><p>Updated</p>");
+}
+
+void run_mode() {
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(eepromData.ssid, eepromData.passphrase);
+    pixels.updateType(eepromData.colourorder + NEO_KHZ800);
+    pixels.updateLength(eepromData.pixelcount);
+    pixels.setPin(dataPin);
+    pixels.begin();
+    for (int i = 0; i < eepromData.pixelcount; i++) {
+      pixels.setPixelColor(i, pixels.Color(1, 1, 1));
+    }
+    pixels.show();
+    Udp.begin(udpPort);
+    server.on("/", runRootHandler);
+    server.on("/apply", runUpdateHandler);
+    server.begin();
 }
 
 void configRootHandler() {
