@@ -368,8 +368,8 @@ void hsvScroll() {
 void christmasRedAndGreen() {
   static unsigned long lastChange = 0;
   unsigned long interval = 200;
-  const uint32_t red = pixels.Color(255, 0, 0);
-  const uint32_t green = pixels.Color(0, 255, 0);
+  const uint32_t red = pixels.Color(eepromData.scalered, 0, 0);
+  const uint32_t green = pixels.Color(0, eepromData.scalegreen, 0);
 
   if (ledModeChanged) {
     // randomise all of the pixels
@@ -442,7 +442,10 @@ void twinkle() {
           levels[i] = levels[i] - step;
         }
       }
-      pixels.setPixelColor(i, pixels.Color(levels[i], levels[i], levels[i]));
+      pixels.setPixelColor(i, pixels.Color(
+        levels[i] * eepromData.scalered / 255,
+        levels[i] * eepromData.scalegreen / 255,
+        levels[i] * eepromData.scaleblue / 255));
     }
     pixels.show();
     lastChange = millis();
