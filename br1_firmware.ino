@@ -612,6 +612,53 @@ void runUpdateHandler() {
   }
 }
 
+void runConfigHandler() {
+  int i;
+
+  String form = "<!DOCTYPE html>"
+      "<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"></head>"
+      "<form method=\"POST\" action=\"apply2\">";
+
+  form += "Scaling: "
+      "R<input type=\"number\" name=\"scalered\" min=\"0\" max=\"255\" value=\"";
+  form += eepromData.scalered;
+  form += "\"/>"
+      "G<input type=\"number\" name=\"scalegreen\" min=\"0\" max=\"255\" value=\"";
+  form += eepromData.scalegreen;
+  form += "\"/>"
+      "B<input type=\"number\" name=\"scaleblue\" min=\"0\" max=\"255\" value=\"";
+  form += eepromData.scaleblue;
+  form += "\"/><br/>";
+
+  form += "Default Mode: <input type=\"number\" name=\"defaultmode\" min=\"0\" max=\"255\" value=\"";
+  form += eepromData.defaultmode;
+  form += "\"/><br/>";
+  form += "<input type=\"submit\" /></form>";
+
+  server.send(200, "text/html", form);
+}
+
+void runConfigUpdateHandler() {
+  for (uint8_t i = 0; i < server.args(); i++) {
+    if (server.argName(i) == "scalered") {
+      eepromData.scalered = server.arg(i).toInt();
+    }
+    if (server.argName(i) == "scalegreen") {
+      eepromData.scalegreen = server.arg(i).toInt();
+    }
+    if (server.argName(i) == "scaleblue") {
+      eepromData.scaleblue = server.arg(i).toInt();
+    }
+    if (server.argName(i) == "defaultmode") {
+      eepromData.defaultmode = server.arg(i).toInt();
+    }
+  }
+  ledModeChanged = true;
+  EEPROM.put(0, eepromData);
+  EEPROM.commit();
+  server.send(200, "text/html", "<p>Settings updated</p>");
+}
+
 void run_mode() {
     switch (eepromData.wifimode) {
     case 1:
@@ -649,6 +696,8 @@ void run_mode() {
     Udp.begin(udpPort);
     server.on("/", runRootHandler);
     server.on("/apply", runUpdateHandler);
+    server.on("/config", runConfigHandler);
+    server.on("/apply2", runConfigUpdateHandler);
     server.begin();
     ledMode = eepromData.defaultmode;
 }
