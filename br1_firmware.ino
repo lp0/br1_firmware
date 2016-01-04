@@ -49,6 +49,8 @@ const uint8_t buttonPin = 13;
 const uint8_t dataPin = 12;
 const unsigned int udpPort = 2812;
 
+const char *wifiModeNames[] = { "STA", "AP", NULL };
+
 const char *colourOrderNames[] = { "RGB", "RBG", "GRB", "GBR", "BRG", "BGR", NULL };
 const uint16_t colourOrderValues[] = { 6, 9, 82, 88, 161, 164 };
 
@@ -64,6 +66,7 @@ struct EepromData {
   uint8_t scalegreen;
   uint8_t scaleblue;
   uint8_t defaultmode;
+  uint8_t wifimode;
 } eepromData;
 
 char myhostname[64];
@@ -574,8 +577,31 @@ void runUpdateHandler() {
 }
 
 void run_mode() {
-    WiFi.mode(WIFI_STA);
-    WiFi.begin(eepromData.ssid, eepromData.passphrase);
+    switch (eepromData.wifimode) {
+    case 1:
+      // go into access point mode
+      WiFi.mode(WIFI_AP);
+      if (strlen(eepromData.passphrase) > 0)
+        WiFi.softAP(eepromData.ssid, eepromData.passphrase);
+      else
+        WiFi.softAP(eepromData.ssid);
+      delay(100);
+      ip = WiFi.softAPIP();
+
+      // display access details
+      Serial.print("WiFi AP: SSID=");
+      Serial.print(eepromData.ssid);
+      Serial.print(" URL=http://");
+      Serial.print(ip);
+      Serial.println("/");
+      break;
+
+    case 0:
+    default:
+      WiFi.mode(WIFI_STA);
+      WiFi.begin(eepromData.ssid, eepromData.passphrase);
+      break;
+    }
     pixels.updateType(eepromData.colourorder + NEO_KHZ800);
     pixels.updateLength(eepromData.pixelcount);
     pixels.setPin(dataPin);
@@ -605,6 +631,19 @@ void configRootHandler() {
   if (eepromData.configured == 1)
     form += " value=\"*\"";
   form += "/><br/>";
+
+  form += "WiFi Mode: <select name=\"wifimode\">";
+  for (i = 0; wifiModeNames[i] != NULL; i++) {
+    form += "<option value=\"";
+    form += i;
+    form += "\"";
+    if (eepromData.configured == 1 && eepromData.wifimode == i)
+      form += " selected";
+    form += ">";
+    form += wifiModeNames[i];
+    form += "</option>";
+  }
+  form += "</select><br/>";
 
   form += "Pixel Count: <input type=\"number\" name=\"pixelcount\" min=\"1\"";
   if (eepromData.configured == 1) {
@@ -676,6 +715,9 @@ void configUpdateHandler() {
     }
     if (server.argName(i) == "defaultmode") {
       eepromData.defaultmode = server.arg(i).toInt();
+    }
+    if (server.argName(i) == "wifimode") {
+      eepromData.wifimode = server.arg(i).toInt();
     }
     eepromData.configured = 1;
     EEPROM.put(0, eepromData);
