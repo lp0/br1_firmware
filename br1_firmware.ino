@@ -63,6 +63,7 @@ struct EepromData {
   uint8_t scalered;
   uint8_t scalegreen;
   uint8_t scaleblue;
+  uint8_t defaultmode;
 } eepromData;
 
 char myhostname[64];
@@ -522,6 +523,12 @@ void runRootHandler() {
       "<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"></head>"
       "<form method=\"POST\" action=\"apply\">";
 
+  for (uint8_t i = 0; i < server.args(); i++) {
+    if (server.argName(i) == "default") {
+      form += "<input type=\"hidden\" name=\"default\" value=\"1\"/>";
+    }
+  }
+
   form += "Mode: <select name=\"ledmode\">";
   for (i = 0; modeNames[i] != NULL; i++) {
     form += "<option value=\"";
@@ -542,13 +549,28 @@ void runRootHandler() {
 }
 
 void runUpdateHandler() {
+  int setDefault = 0;
+
   for (uint8_t i = 0; i < server.args(); i++) {
+    if (server.argName(i) == "default") {
+      setDefault = 1;
+    }
+
     if (server.argName(i) == "ledmode") {
       ledMode = server.arg(i).toInt();
       ledModeChanged = true;
     }
   }
-  server.send(200, "text/html", "<!DOCTYPE html><head><meta http-equiv=\"refresh\" content=\"0;URL=/\"></head><p>Updated</p>");
+
+  if (setDefault) {
+    eepromData.defaultmode = ledMode;
+    EEPROM.put(0, eepromData);
+    EEPROM.commit();
+
+    server.send(200, "text/html", "<!DOCTYPE html><head><meta http-equiv=\"refresh\" content=\"5;URL=/\"></head><p>Updated default</p>");
+  } else {
+    server.send(200, "text/html", "<!DOCTYPE html><head><meta http-equiv=\"refresh\" content=\"0;URL=/\"></head><p>Updated</p>");
+  }
 }
 
 void run_mode() {
@@ -566,6 +588,7 @@ void run_mode() {
     server.on("/", runRootHandler);
     server.on("/apply", runUpdateHandler);
     server.begin();
+    ledMode = eepromData.defaultmode;
 }
 
 void configRootHandler() {
@@ -613,8 +636,16 @@ void configRootHandler() {
   form += "\"/>"
       "B<input type=\"number\" name=\"scaleblue\" min=\"0\" max=\"255\" value=\"";
   form += (eepromData.configured == 1 ? eepromData.scaleblue : 255);
-  form += "\"/><br/>"
-      "<input type=\"submit\" /></form>";
+  form += "\"/><br/>";
+
+  form += "Default Mode: <input type=\"number\" name=\"defaultmode\" min=\"0\" max=\"255\" value=\"";
+  if (eepromData.configured == 1) {
+    form += eepromData.defaultmode;
+  } else {
+    form += ledMode;
+  }
+  form += "\"/><br/>";
+  form += "<input type=\"submit\" /></form>";
 
   server.send(200, "text/html", form);
 }
@@ -642,6 +673,9 @@ void configUpdateHandler() {
     }
     if (server.argName(i) == "scaleblue") {
       eepromData.scaleblue = server.arg(i).toInt();
+    }
+    if (server.argName(i) == "defaultmode") {
+      eepromData.defaultmode = server.arg(i).toInt();
     }
     eepromData.configured = 1;
     EEPROM.put(0, eepromData);
