@@ -87,6 +87,7 @@ void ledLoop();
 void singleColour(uint8_t red, uint8_t green, uint8_t blue);
 
 void setup() {
+  boolean configMode = false;
 
   pinMode(buttonPin, INPUT_PULLUP);
 
@@ -100,14 +101,18 @@ void setup() {
   EEPROM.begin(512);
   EEPROM.get(0, eepromData);
 
-  if (digitalRead(buttonPin) == LOW) {
+  if (eepromData.configured != 1) {
+    Serial.println("EEPROM is empty, going into configuration mode");
+    configMode = true;
+  } else if (digitalRead(buttonPin) == LOW) {
     delay(500);
     if (digitalRead(buttonPin) == LOW) {
       Serial.println("Button pressed, going into configuration mode");
-      configuration_mode();
+      configMode = true;
     }
-  } else if (eepromData.configured != 1) {
-    Serial.println("EEPROM is empty, going into configuration mode");
+  }
+
+  if (configMode) {
     configuration_mode();
   } else {
     Serial.println("Entering run mode");
