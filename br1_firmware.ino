@@ -94,6 +94,8 @@ void setup() {
   Serial.begin(115200);
   Serial.println();
   Serial.println("Booting - Hold button to enter configuration mode");
+  Serial.print("getResetInfo=");
+  Serial.println(ESP.getResetInfo());
 
   snprintf(myhostname, sizeof(myhostname), "ws2812-%08x", ESP.getChipId());
   wifi_station_set_hostname(myhostname);
@@ -829,6 +831,49 @@ void configUpdateHandler() {
 }
 
 void configuration_mode() {
+  Serial.print("freeHeap=");
+  Serial.println(ESP.getFreeHeap());
+  Serial.print("chipId=");
+  Serial.println(ESP.getChipId(), HEX);
+  Serial.print("sdkVersion=");
+  Serial.println(ESP.getSdkVersion());
+  Serial.print("bootVersion=");
+  Serial.println(ESP.getBootVersion());
+  Serial.print("bootMode=");
+  Serial.println(ESP.getBootMode());
+  Serial.print("cpuFreqMHz=");
+  Serial.println(ESP.getCpuFreqMHz());
+  Serial.print("flashChipId=");
+  Serial.println(ESP.getFlashChipId(), HEX);
+  Serial.print("flashChipRealSize=");
+  Serial.println(ESP.getFlashChipRealSize());
+  Serial.print("flashChipSpeed=");
+  Serial.println(ESP.getFlashChipSpeed());
+  Serial.print("sketchSize=");
+  Serial.println(ESP.getSketchSize());
+  Serial.print("freeSketchSpace=");
+  Serial.println(ESP.getFreeSketchSpace());
+  Serial.println();
+
+  Serial.print("ssid=");
+  Serial.println(eepromData.ssid);
+  Serial.print("passphrase=");
+  Serial.println(eepromData.passphrase);
+  Serial.print("pixelcount=");
+  Serial.println(eepromData.pixelcount);
+  Serial.print("colourorder=");
+  Serial.println(eepromData.colourorder);
+  Serial.print("scalered=");
+  Serial.println(eepromData.scalered);
+  Serial.print("scalegreen=");
+  Serial.println(eepromData.scalegreen);
+  Serial.print("scaleblue=");
+  Serial.println(eepromData.scaleblue);
+  Serial.print("defaultmode=");
+  Serial.println(eepromData.defaultmode);
+  Serial.print("wifimode=");
+  Serial.println(eepromData.wifimode);
+  Serial.println();
 
   // set first three pixels to dim white to acknowledge configuration mode
   pixels.updateType(NEO_RGB + NEO_KHZ800);
