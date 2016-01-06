@@ -565,7 +565,10 @@ void ledLoop() {
 void runRootHandler() {
   int i;
 
-  String form = "<!DOCTYPE html>"
+  String form;
+
+  form.reserve(808);
+  form += "<!DOCTYPE html>"
       "<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"></head>"
       "<form method=\"POST\" action=\"apply\">";
 
@@ -622,7 +625,10 @@ void runUpdateHandler() {
 void runConfigHandler() {
   int i;
 
-  String form = "<!DOCTYPE html>"
+  String form;
+
+  form.reserve(480);
+  form += "<!DOCTYPE html>"
       "<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"></head>"
       "<form method=\"POST\" action=\"apply2\">";
 
