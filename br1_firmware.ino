@@ -124,6 +124,7 @@ void setup() {
 
 void loop() {
   static boolean waitingForWiFi = true;
+  static unsigned long lastChange = 0;
 
   if (waitingForWiFi) {
     if (WiFi.status() == WL_CONNECTED) {
@@ -139,8 +140,16 @@ void loop() {
   }
 
   udpLoop();
-  tcpLoop();
+  yield();
+
+  if (millis() - lastChange >= 200) {
+    tcpLoop();
+    yield();
+    lastChange = millis();
+  }
+
   ledLoop();
+  yield();
 
   uint8_t newButtonState = digitalRead(buttonPin);
   if ((newButtonState == LOW) && (buttonState == HIGH)) {
@@ -567,7 +576,9 @@ void runRootHandler() {
 
   String form;
 
+  yield();
   form.reserve(808);
+  yield();
   form += "<!DOCTYPE html>"
       "<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"></head>"
       "<form method=\"POST\" action=\"apply\">";
@@ -594,7 +605,9 @@ void runRootHandler() {
   form += "<br/>"
       "<input type=\"submit\"/></form>";
 
+  yield();
   server.send(200, "text/html", form);
+  yield();
 }
 
 void runUpdateHandler() {
@@ -611,15 +624,18 @@ void runUpdateHandler() {
     }
   }
 
+  yield();
   if (setDefault) {
     eepromData.defaultmode = ledMode;
     EEPROM.put(0, eepromData);
     EEPROM.commit();
 
+    yield();
     server.send(200, "text/html", "<!DOCTYPE html><head><meta http-equiv=\"refresh\" content=\"5;URL=/\"></head><p>Updated default</p>");
   } else {
     server.send(200, "text/html", "<!DOCTYPE html><head><meta http-equiv=\"refresh\" content=\"0;URL=/\"></head><p>Updated</p>");
   }
+  yield();
 }
 
 void runConfigHandler() {
@@ -627,7 +643,9 @@ void runConfigHandler() {
 
   String form;
 
+  yield();
   form.reserve(480);
+  yield();
   form += "<!DOCTYPE html>"
       "<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"></head>"
       "<form method=\"POST\" action=\"apply2\">";
@@ -648,7 +666,9 @@ void runConfigHandler() {
   form += "\"/><br/>";
   form += "<input type=\"submit\" /></form>";
 
+  yield();
   server.send(200, "text/html", form);
+  yield();
 }
 
 void runConfigUpdateHandler() {
@@ -666,10 +686,14 @@ void runConfigUpdateHandler() {
       eepromData.defaultmode = server.arg(i).toInt();
     }
   }
+  yield();
   ledModeChanged = true;
   EEPROM.put(0, eepromData);
   EEPROM.commit();
+
+  yield();
   server.send(200, "text/html", "<p>Settings updated</p>");
+  yield();
 }
 
 void run_mode() {
