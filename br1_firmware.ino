@@ -698,6 +698,29 @@ void runConfigUpdateHandler() {
   yield();
 }
 
+void runUptimeHandler() {
+  unsigned long uptime = millis();
+  unsigned long days, hours, minutes, seconds, ms;
+  char response[64];
+
+  days = uptime / 86400000;
+  uptime %= 86400000;
+
+  hours = uptime / 3600000;
+  uptime %= 3600000;
+
+  minutes = uptime / 60000;
+  uptime %= 60000;
+
+  seconds = uptime / 1000;
+  uptime %= 1000;
+
+  ms = uptime;
+
+  snprintf(response, sizeof(response), "%03d+%02d:%02d:%02d.%03d\n", days, hours, minutes, seconds, ms);
+  server.send(200, "text/plain", response);
+}
+
 void run_mode() {
     switch (eepromData.wifimode) {
     case 1:
@@ -737,6 +760,7 @@ void run_mode() {
     server.on("/apply", runUpdateHandler);
     server.on("/config", runConfigHandler);
     server.on("/apply2", runConfigUpdateHandler);
+    server.on("/uptime", runUptimeHandler);
     server.begin();
     ledMode = eepromData.defaultmode;
     Serial.print("Ready, mode=");
