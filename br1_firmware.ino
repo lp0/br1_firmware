@@ -126,7 +126,7 @@ void loop() {
   static boolean waitingForWiFi = true;
   static unsigned long lastChange = 0;
 
-  if (waitingForWiFi) {
+  if (eepromData.wifimode != 1 && waitingForWiFi) {
     if (WiFi.status() == WL_CONNECTED) {
       ip = WiFi.localIP();
       Serial.print("WiFi ready: SSID=");
