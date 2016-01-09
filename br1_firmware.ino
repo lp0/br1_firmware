@@ -487,7 +487,7 @@ void christmasWork() {
   if (millis() - lastChange > interval) {
     int i = random(0, eepromData.pixelcount);
     int j;
-    int n = colours[random(1, num_colours)];
+    int n = random(1, num_colours);
     for (int j = 0; j < num_colours; j++) {
       if (pixels.getPixelColor(i) == colours[j]) {
         pixels.setPixelColor(i, colours[(j + n) % num_colours]);
