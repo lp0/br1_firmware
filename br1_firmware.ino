@@ -621,6 +621,8 @@ void runUpdateHandler() {
     if (server.argName(i) == "ledmode") {
       ledMode = server.arg(i).toInt();
       ledModeChanged = true;
+      Serial.print("Updated mode=");
+      Serial.println(ledMode, DEC);
     }
   }
 
@@ -737,6 +739,8 @@ void run_mode() {
     server.on("/apply2", runConfigUpdateHandler);
     server.begin();
     ledMode = eepromData.defaultmode;
+    Serial.print("Ready, mode=");
+    Serial.println(ledMode, DEC);
 }
 
 void configRootHandler() {
