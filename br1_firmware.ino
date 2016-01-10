@@ -151,7 +151,13 @@ void loop() {
     ++ledMode;
     ledModeChanged = true;
     Serial.print("Button pressed, mode=");
-    Serial.println(ledMode, DEC);
+    Serial.print(ledMode, DEC);
+    if (modeNames[ledMode]) {
+      Serial.print(" ");
+      Serial.println(modeNames[ledMode]);
+    } else {
+      Serial.println();
+    }
     buttonState = LOW;
   } else if ((newButtonState == HIGH) && (buttonState == LOW)) {
     buttonState = HIGH;
