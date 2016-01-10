@@ -871,9 +871,38 @@ void runRootHandler() {
 
   String form;
 
-  form.reserve(808);
+  form.reserve(2252);
   form += "<!DOCTYPE html>"
-      "<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"></head>"
+      "<html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
+      "<style type=\"text/css\">"
+      "html, body, form { padding: 0; margin: 0; }"
+      "input {"
+        "border: none; background-color: #99f; padding: 1em 0 1em 0;"
+        "border-bottom: 2px solid #fff;"
+        "margin: 0;"
+        "width: 100%;"
+        "font-weight: bold;"
+      "}"
+      "input:active {"
+        "background-color: #f99;"
+      "}"
+      "#selected {"
+        "background-color: #9f9;"
+      "}"
+      "</style>"
+      "<script>"
+      "Element.prototype.documentOffsetTop = function () {"
+        "return this.offsetTop + (this.offsetParent ? this.offsetParent.documentOffsetTop() : 0);"
+      "};"
+      "window.onload = function() {"
+        "var selected = document.getElementById('selected');"
+        "if (selected) {"
+          "var top = selected.documentOffsetTop() - (window.innerHeight / 2);"
+          "window.scrollTo(0, top);"
+        "}"
+      "};"
+      "</script>"
+      "</head><body>"
       "<form method=\"POST\" action=\"apply\">";
 
   for (uint8_t i = 0; i < server.args(); i++) {
@@ -882,21 +911,19 @@ void runRootHandler() {
     }
   }
 
-  form += "Mode: <select name=\"ledmode\">";
   for (i = 0; modeNames[i] != NULL; i++) {
-    form += "<option value=\"";
+    if (i == 2 || i == 13) continue;
+    form += "<input type=\"submit\" name=\"ledmode_";
     form += i;
     form += "\"";
     if (ledMode == i)
-      form += " selected";
-    form += ">";
+      form += " id=\"selected\"";
+    form += " value=\"";
     form += modeNames[i];
-    form += "</option>";
+    form += "\"><br>";
   }
-  form += "</select>";
 
-  form += "<br/>"
-      "<input type=\"submit\"/></form>";
+  form += "</form>";
 
   server.send(200, "text/html", form);
 }
@@ -909,8 +936,8 @@ void runUpdateHandler() {
       setDefault = 1;
     }
 
-    if (server.argName(i) == "ledmode") {
-      ledMode = server.arg(i).toInt();
+    if (server.argName(i).startsWith("ledmode_")) {
+      ledMode = server.argName(i).substring(8).toInt();
       ledModeChanged = true;
       Serial.print("Updated mode=");
       Serial.println(ledMode, DEC);
@@ -922,9 +949,18 @@ void runUpdateHandler() {
     EEPROM.put(0, eepromData);
     EEPROM.commit();
 
-    server.send(200, "text/html", "<!DOCTYPE html><head><meta http-equiv=\"refresh\" content=\"5;URL=/\"></head><p>Updated default</p>");
+    server.send(200, "text/html", "<!DOCTYPE html><head><meta http-equiv=\"refresh\" content=\"2;URL=/\"></head><p>Updated default</p>");
   } else {
-    server.send(200, "text/html", "<!DOCTYPE html><head><meta http-equiv=\"refresh\" content=\"0;URL=/\"></head><p>Updated</p>");
+    String redirect;
+    redirect.reserve(128);
+    redirect += "HTTP/1.1 302 Updated\r\nLocation: http://";
+    if (eepromData.wifimode == 1) {
+      redirect += WiFi.softAPIP().toString();
+    } else {
+      redirect += WiFi.localIP().toString();
+    }
+    redirect += "/\r\nConnection: close\r\nContent-Length: 0\r\n\r\n";
+    server.sendContent(redirect);
   }
 }
 
