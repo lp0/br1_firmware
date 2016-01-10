@@ -5,7 +5,7 @@
  *   https://github.com/esp8266/Arduino/
  *
  * Libraries:
- *   https://github.com/adafruit/Adafruit_NeoPixel/
+ *   https://github.com/lp0/NeoPixelBus/tree/UartDriven (forked from https://github.com/Makuna/NeoPixelBus/tree/UartDriven)
  *
  */
 
@@ -14,7 +14,7 @@
 #include <WiFiUdp.h>
 #include <ESP8266WebServer.h>
 #include <EEPROM.h>
-#include <Adafruit_NeoPixel.h>
+#include <NeoPixelBus.h>
 
 #ifdef ESP8266
 extern "C" {
@@ -46,13 +46,13 @@ extern "C" {
 
 const uint8_t irPin = 14;
 const uint8_t buttonPin = 13;
-const uint8_t dataPin = 12;
+const uint8_t dataPin = 2;
 const unsigned int udpPort = 2812;
 
 const char *wifiModeNames[] = { "STA", "AP", NULL };
 
-const char *colourOrderNames[] = { "RGB", "RBG", "GRB", "GBR", "BRG", "BGR", NULL };
-const uint16_t colourOrderValues[] = { 6, 9, 82, 88, 161, 164 };
+const char *colourOrderNames[] = { "RGB", "GRB", "BRG", NULL };
+const uint16_t colourOrderValues[] = { NEO_RGB, NEO_GRB, NEO_BRG };
 
 const char *modeNames[] = { "Black", "Red", "Dim red", "Green", "Yellow", "Blue", "Magenta", "Cyan", "White", "HSV Scroll", "HSV Fade", "Christmas (Red and Green)", "Twinkle", "Red night light", "Christmas (Work Colours)", NULL };
 
@@ -71,7 +71,7 @@ struct EepromData {
 
 char myhostname[64];
 IPAddress ip;
-Adafruit_NeoPixel pixels = Adafruit_NeoPixel();
+NeoPixelBus pixels;
 ESP8266WebServer server(80);
 WiFiUDP Udp;
 uint8_t inboundMessage[1500];
@@ -183,11 +183,11 @@ void udpMessageHandler(int len) {
       red = inboundMessage[pos];
       green = inboundMessage[pos + 1];
       blue = inboundMessage[pos + 2];
-      pixels.setPixelColor(pixel, pixels.Color(red, green, blue));
+      pixels.SetPixelColor(pixel, RgbColor(red, green, blue));
       pixel++;
       pos += 3;
     }
-    pixels.show();
+    pixels.Show();
     ledMode = 255;
     break;
   }
@@ -240,11 +240,11 @@ void tcpLoop() {
 void singleColour(uint8_t red, uint8_t green, uint8_t blue) {
 
   for (int i = 0; i < eepromData.pixelcount; i++) {
-    pixels.setPixelColor(i, pixels.Color(red * eepromData.scalered / 255,
+    pixels.SetPixelColor(i, RgbColor(red * eepromData.scalered / 255,
                                          green * eepromData.scalegreen / 255,
                                          blue * eepromData.scaleblue / 255));
   }
-  pixels.show();
+  pixels.Show();
 }
 
 void redNightLight() {
@@ -276,7 +276,7 @@ void redNightLight() {
 //  s is saturation value, double between 0 and 1
 //  v is value, double between 0 and 1
 // http://splinter.com.au/blog/?p=29
-uint32_t ledHSV(int h, double s, double v) {
+RgbColor ledHSV(int h, double s, double v) {
   double r = 0;
   double g = 0;
   double b = 0;
@@ -327,12 +327,12 @@ uint32_t ledHSV(int h, double s, double v) {
   int green = constrain((int)255 * g, 0, 255);
   int blue = constrain((int)255 * b, 0, 255);
 
-  return pixels.Color(red * eepromData.scalered / 255,
+  return RgbColor(red * eepromData.scalered / 255,
                       green * eepromData.scalegreen / 255,
                       blue * eepromData.scaleblue / 255);
 }
 
-uint32_t ledExpHSV(int h, double s, double v) {
+RgbColor ledExpHSV(int h, double s, double v) {
   if (h < (HUE_EXP_TIMES * HUE_EXP_RANGE))
     return ledHSV(h / HUE_EXP_TIMES, s, v);
   else
@@ -346,9 +346,9 @@ void hsvFade() {
 
   if (millis() - lastChange > interval) {
     for (int i = 0; i < eepromData.pixelcount; i++) {
-      pixels.setPixelColor(i, ledExpHSV(hue, 1.0, 1.0));
+      pixels.SetPixelColor(i, ledExpHSV(hue, 1.0, 1.0));
     }
-    pixels.show();
+    pixels.Show();
     hue++;
     hue %= HUE_EXP_MAX;
     lastChange = millis();
@@ -358,9 +358,9 @@ void hsvFade() {
 void hsvStatic() {
 
   for (int i = 0; i < eepromData.pixelcount; i++) {
-    pixels.setPixelColor(i, ledExpHSV(i * HUE_EXP_MAX / eepromData.pixelcount, 1.0, 1.0));
+    pixels.SetPixelColor(i, ledExpHSV(i * HUE_EXP_MAX / eepromData.pixelcount, 1.0, 1.0));
   }
-  pixels.show();
+  pixels.Show();
 }
 
 void hsvScroll() {
@@ -370,9 +370,9 @@ void hsvScroll() {
 
   if (millis() - lastChange > interval) {
     for (int i = 0; i < eepromData.pixelcount; i++) {
-      pixels.setPixelColor(i, ledExpHSV(((i * HUE_EXP_MAX / eepromData.pixelcount) + hue) % HUE_EXP_MAX, 1.0, 1.0));
+      pixels.SetPixelColor(i, ledExpHSV(((i * HUE_EXP_MAX / eepromData.pixelcount) + hue) % HUE_EXP_MAX, 1.0, 1.0));
     }
-    pixels.show();
+    pixels.Show();
     hue++;
     hue %= HUE_EXP_MAX;
     lastChange = millis();
@@ -382,30 +382,30 @@ void hsvScroll() {
 void christmasRedAndGreen() {
   static unsigned long lastChange = 0;
   unsigned long interval = 200;
-  const uint32_t red = pixels.Color(eepromData.scalered, 0, 0);
-  const uint32_t green = pixels.Color(0, eepromData.scalegreen, 0);
+  const RgbColor red = RgbColor(eepromData.scalered, 0, 0);
+  const RgbColor green = RgbColor(0, eepromData.scalegreen, 0);
 
   if (ledModeChanged) {
     // randomise all of the pixels
     for (int i = 0; i < eepromData.pixelcount; i++) {
       if (random(0, 2) == 0) {
-        pixels.setPixelColor(i, red);
+        pixels.SetPixelColor(i, red);
       } else {
-        pixels.setPixelColor(i, green);
+        pixels.SetPixelColor(i, green);
       }
     }
-    pixels.show();
+    pixels.Show();
     ledModeChanged = false;
   }
 
   if (millis() - lastChange > interval) {
     int i = random(0, eepromData.pixelcount);
-    if (pixels.getPixelColor(i) == green) {
-      pixels.setPixelColor(i, red);
+    if (pixels.GetPixelColor(i) == green) {
+      pixels.SetPixelColor(i, red);
     } else {
-      pixels.setPixelColor(i, green);
+      pixels.SetPixelColor(i, green);
     }
-    pixels.show();
+    pixels.Show();
     lastChange = millis();
   }
 }
@@ -456,12 +456,12 @@ void twinkle() {
           levels[i] = levels[i] - step;
         }
       }
-      pixels.setPixelColor(i, pixels.Color(
+      pixels.SetPixelColor(i, RgbColor(
         levels[i] * eepromData.scalered / 255,
         levels[i] * eepromData.scalegreen / 255,
         levels[i] * eepromData.scaleblue / 255));
     }
-    pixels.show();
+    pixels.Show();
     lastChange = millis();
   }
 }
@@ -469,32 +469,31 @@ void twinkle() {
 void christmasWork() {
   static unsigned long lastChange = 0;
   unsigned long interval = 200;
-  const uint32_t grey = pixels.Color(74 * eepromData.scalered / 255, 79 * eepromData.scalegreen / 255, 85 * eepromData.scaleblue / 255);
-  const uint32_t red = pixels.Color(194 * eepromData.scalered / 255, 4 * eepromData.scalegreen / 255, 24 * eepromData.scaleblue / 255);
-  const uint32_t lightBlue = pixels.Color(0, 195 * eepromData.scalegreen / 255, 215 * eepromData.scaleblue / 255);
-  const uint32_t darkBlue = pixels.Color(0, 51 * eepromData.scalegreen / 255, 161 * eepromData.scaleblue / 255);
-  const uint32_t colours[4] = { grey, red, lightBlue, darkBlue };
-  const int num_colours = sizeof(colours)/sizeof(uint32_t);
+  const RgbColor grey = RgbColor(74 * eepromData.scalered / 255, 79 * eepromData.scalegreen / 255, 85 * eepromData.scaleblue / 255);
+  const RgbColor red = RgbColor(194 * eepromData.scalered / 255, 4 * eepromData.scalegreen / 255, 24 * eepromData.scaleblue / 255);
+  const RgbColor lightBlue = RgbColor(0, 195 * eepromData.scalegreen / 255, 215 * eepromData.scaleblue / 255);
+  const RgbColor darkBlue = RgbColor(0, 51 * eepromData.scalegreen / 255, 161 * eepromData.scaleblue / 255);
+  const RgbColor colours[4] = { grey, red, lightBlue, darkBlue };
+  const int num_colours = sizeof(colours)/sizeof(RgbColor);
 
   if (ledModeChanged) {
     // randomise all of the pixels
     for (int i = 0; i < eepromData.pixelcount; i++)
-      pixels.setPixelColor(i, colours[random(0, num_colours)]);
-    pixels.show();
+      pixels.SetPixelColor(i, colours[random(0, num_colours)]);
+    pixels.Show();
     ledModeChanged = false;
   }
 
   if (millis() - lastChange > interval) {
     int i = random(0, eepromData.pixelcount);
-    int j;
     int n = random(1, num_colours);
     for (int j = 0; j < num_colours; j++) {
-      if (pixels.getPixelColor(i) == colours[j]) {
-        pixels.setPixelColor(i, colours[(j + n) % num_colours]);
+      if (pixels.GetPixelColor(i) == colours[j]) {
+        pixels.SetPixelColor(i, colours[(j + n) % num_colours]);
         break;
       }
     }
-    pixels.show();
+    pixels.Show();
     lastChange = millis();
   }
 }
@@ -629,8 +628,6 @@ void runUpdateHandler() {
 }
 
 void runConfigHandler() {
-  int i;
-
   String form;
 
   form.reserve(480);
@@ -698,7 +695,7 @@ void runUptimeHandler() {
 
   ms = uptime;
 
-  snprintf(response, sizeof(response), "%03d+%02d:%02d:%02d.%03d\n", days, hours, minutes, seconds, ms);
+  snprintf(response, sizeof(response), "%03ld+%02ld:%02ld:%02ld.%03ld\n", days, hours, minutes, seconds, ms);
   server.send(200, "text/plain", response);
 }
 
@@ -728,14 +725,11 @@ void run_mode() {
       WiFi.begin(eepromData.ssid, eepromData.passphrase);
       break;
     }
-    pixels.updateType(eepromData.colourorder + NEO_KHZ800);
-    pixels.updateLength(eepromData.pixelcount);
-    pixels.setPin(dataPin);
-    pixels.begin();
-    for (int i = 0; i < eepromData.pixelcount; i++) {
-      pixels.setPixelColor(i, pixels.Color(1, 1, 1));
-    }
-    pixels.show();
+
+    pixels.setPixelCount(eepromData.pixelcount);
+    pixels.setType(eepromData.colourorder | NEO_KHZ800);
+    pixels.Begin();
+
     Udp.begin(udpPort);
     server.on("/", runRootHandler);
     server.on("/apply", runUpdateHandler);
@@ -858,15 +852,16 @@ void configUpdateHandler() {
 
   // set first three pixels to Red-Green-Blue using the updated configuration
   // set the last pixel to White
-  pixels.updateType(eepromData.colourorder + NEO_KHZ800);
-  pixels.updateLength(eepromData.pixelcount);
+  pixels.setPixelCount(eepromData.pixelcount);
+  pixels.setType(eepromData.colourorder | NEO_KHZ800);
+  pixels.Begin();
   singleColour(0, 0, 0);
-  pixels.setPixelColor(0, pixels.Color(eepromData.scalered, 0, 0));
-  pixels.setPixelColor(1, pixels.Color(0, eepromData.scalegreen, 0));
-  pixels.setPixelColor(2, pixels.Color(0, 0, eepromData.scaleblue));
-  pixels.setPixelColor(eepromData.pixelcount - 1,
-    pixels.Color(eepromData.scalered, eepromData.scalegreen, eepromData.scaleblue));
-  pixels.show();
+  pixels.SetPixelColor(0, RgbColor(eepromData.scalered, 0, 0));
+  pixels.SetPixelColor(1, RgbColor(0, eepromData.scalegreen, 0));
+  pixels.SetPixelColor(2, RgbColor(0, 0, eepromData.scaleblue));
+  pixels.SetPixelColor(eepromData.pixelcount - 1,
+    RgbColor(eepromData.scalered, eepromData.scalegreen, eepromData.scaleblue));
+  pixels.Show();
 }
 
 void configuration_mode() {
@@ -915,14 +910,13 @@ void configuration_mode() {
   Serial.println();
 
   // set first three pixels to dim white to acknowledge configuration mode
-  pixels.updateType(NEO_RGB + NEO_KHZ800);
-  pixels.updateLength(3);
-  pixels.setPin(dataPin);
-  pixels.begin();
-  pixels.setPixelColor(0, pixels.Color(63, 63, 63));
-  pixels.setPixelColor(1, pixels.Color(63, 63, 63));
-  pixels.setPixelColor(2, pixels.Color(63, 63, 63));
-  pixels.show();
+  pixels.setPixelCount(3);
+  pixels.setType(NEO_RGB | NEO_KHZ800);
+  pixels.Begin();
+  pixels.SetPixelColor(0, RgbColor(63, 63, 63));
+  pixels.SetPixelColor(1, RgbColor(63, 63, 63));
+  pixels.SetPixelColor(2, RgbColor(63, 63, 63));
+  pixels.Show();
 
   // go into access point mode
   WiFi.mode(WIFI_AP);
@@ -939,10 +933,10 @@ void configuration_mode() {
 
   // set first three pixels to Red-Green-Blue to indicate that configuration
   // mode AP is ready, and to help the user identify the correct colour order
-  pixels.setPixelColor(0, pixels.Color(255, 0, 0));
-  pixels.setPixelColor(1, pixels.Color(0, 255, 0));
-  pixels.setPixelColor(2, pixels.Color(0, 0, 255));
-  pixels.show();
+  pixels.SetPixelColor(0, RgbColor(255, 0, 0));
+  pixels.SetPixelColor(1, RgbColor(0, 255, 0));
+  pixels.SetPixelColor(2, RgbColor(0, 0, 255));
+  pixels.Show();
 
   server.on("/", configRootHandler);
   server.on("/update", configUpdateHandler);
