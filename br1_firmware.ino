@@ -1048,6 +1048,7 @@ void runUptimeHandler() {
 }
 
 void run_mode() {
+    //eepromData.wifimode = 0;
     switch (eepromData.wifimode) {
     case 1:
       // go into access point mode
