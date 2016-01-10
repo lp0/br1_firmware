@@ -1057,6 +1057,7 @@ void run_mode() {
         WiFi.softAP(eepromData.ssid, eepromData.passphrase);
       else
         WiFi.softAP(eepromData.ssid);
+      { uint8 mode = 0; wifi_softap_set_dhcps_offer_option(OFFER_ROUTER, &mode); }
       delay(100);
       ip = WiFi.softAPIP();
 
@@ -1270,6 +1271,8 @@ void configuration_mode() {
   // go into access point mode
   WiFi.mode(WIFI_AP);
   WiFi.softAP(myhostname);
+  { uint8 mode = 0; wifi_softap_set_dhcps_offer_option(OFFER_ROUTER, &mode); }
+  delay(100);
   ip = WiFi.softAPIP();
 
   // display access details
