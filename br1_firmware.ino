@@ -1,5 +1,5 @@
 /*
- * br1_firmware - for http://timhawes.com/br1 PCB
+ * br1_firmware - for http://timhawes.com/br1 PCB (modified to use UART1 pin GPIO2)
  *
  * Arduino packages:
  *   https://github.com/esp8266/Arduino/
