@@ -54,7 +54,7 @@ const char *wifiModeNames[] = { "STA", "AP", NULL };
 const char *colourOrderNames[] = { "RGB", "GRB", "BRG", NULL };
 const uint16_t colourOrderValues[] = { NEO_RGB, NEO_GRB, NEO_BRG };
 
-const char *modeNames[] = { "Black", "Red", "Dim red", "Green", "Yellow", "Blue", "Magenta", "Cyan", "White", "HSV Scroll", "HSV Fade", "Christmas (Red and Green)", "Twinkle", "Red night light", "Christmas (Work Colours)", NULL };
+const char *modeNames[255] = { "Black", "Red", "Dim red", "Green", "Yellow", "Blue", "Magenta", "Cyan", "White", "HSV Scroll", "HSV Fade", "Christmas (Red and Green)", "Twinkle", "Red night light", "Christmas (Work Colours)", "HSV Scroll (Twinkle)", "HSV Static (Twinkle)", "HSV Fade (Twinkle)", "Night Rider", NULL };
 
 struct EepromData {
   uint8_t configured;
@@ -355,11 +355,33 @@ void hsvFade() {
   }
 }
 
-void hsvStatic() {
+boolean hsvFadeNoShow() {
+  static int hue = 0;
+  static unsigned long lastChange = 0;
+  unsigned long interval = 50;
 
+  for (int i = 0; i < eepromData.pixelcount; i++) {
+    pixels.SetPixelColor(i, ledExpHSV(hue, 1.0, 1.0));
+  }
+
+  if (millis() - lastChange > interval) {
+    hue++;
+    hue %= HUE_EXP_MAX;
+    lastChange = millis();
+    return true;
+  }
+  return false;
+}
+
+boolean hsvStaticNoShow() {
   for (int i = 0; i < eepromData.pixelcount; i++) {
     pixels.SetPixelColor(i, ledExpHSV(i * HUE_EXP_MAX / eepromData.pixelcount, 1.0, 1.0));
   }
+  return false;
+}
+
+void hsvStatic() {
+  hsvStaticNoShow();
   pixels.Show();
 }
 
@@ -377,6 +399,24 @@ void hsvScroll() {
     hue %= HUE_EXP_MAX;
     lastChange = millis();
   }
+}
+
+boolean hsvScrollNoShow() {
+  static int hue = 0;
+  static unsigned long lastChange = 0;
+  unsigned long interval = 50;
+
+  for (int i = 0; i < eepromData.pixelcount; i++) {
+    pixels.SetPixelColor(i, ledExpHSV(((i * HUE_EXP_MAX / eepromData.pixelcount) + hue) % HUE_EXP_MAX, 1.0, 1.0));
+  }
+
+  if (millis() - lastChange > interval) {
+    hue++;
+    hue %= HUE_EXP_MAX;
+    lastChange = millis();
+    return true;
+  }
+  return false;
 }
 
 void christmasRedAndGreen() {
@@ -410,28 +450,60 @@ void christmasRedAndGreen() {
   }
 }
 
-void twinkle() {
+uint8_t applyTwinkleLevelC(uint8_t value, uint8_t level, uint8_t scale) {
+  level = (255 - level);
+  value = (value * 255 / scale);
+  if (value >= level) {
+    value = (value - level) * scale / 255;
+  } else {
+    value = 0;
+  }
+  return value;
+}
+
+void applyTwinkleLevel(int i, uint8_t level) {
+  RgbColor tmp;
+  HsbColor hsb;
+
+  tmp = pixels.GetPixelColor(i);
+
+#if 0
+  tmp.R = applyTwinkleLevelC(tmp.R, level, eepromData.scalered);
+  tmp.G = applyTwinkleLevelC(tmp.G, level, eepromData.scalegreen);
+  tmp.B = applyTwinkleLevelC(tmp.B, level, eepromData.scaleblue);
+#endif
+
+  hsb = HsbColor(tmp);
+  hsb.B *= level / 255.0f;
+  tmp = RgbColor(hsb);
+
+  pixels.SetPixelColor(i, tmp);
+}
+
+void twinkle(boolean (*func)(void), uint8_t low, uint8_t high, uint8_t step, boolean invert) {
   static unsigned long lastChange = 0;
   static unsigned long lastPulse = 0;
   static uint8_t levels[MAX_PIXELS];
   static uint8_t current[MAX_PIXELS];
   unsigned long pulseInterval = 250;
   unsigned long changeInterval = 10;
-  const uint8_t low = 50;
-  const uint8_t high = 255;
-  const uint8_t step = 10;
+  boolean refresh = false;
 
   if (ledModeChanged) {
     for (int i = 0; i < eepromData.pixelcount; i++) {
-      levels[i] = low;
+      levels[i] = invert ? high : low;
       current[i] = 0;
     }
+    func();
+    refresh = true;
+    lastChange = millis();
+    lastPulse = millis();
     ledModeChanged = false;
   }
 
   if (millis() - lastPulse > pulseInterval) {
     int target = random(0, eepromData.pixelcount);
-    if (current[target] == 0 && levels[target] == low) {
+    if (current[target] == 0 && levels[target] == (invert ? high : low)) {
       current[target] = 1;
     }
     lastPulse = millis();
@@ -441,29 +513,56 @@ void twinkle() {
     for (int i = 0; i < eepromData.pixelcount; i++) {
       if (current[i] == 1) {
         // this pixel is rising
-        if (levels[i] + step > high) {
+        if (invert ? (levels[i] - step < low) : (levels[i] + step > high)) {
           // the pixel has reached maximum
-          levels[i] = high;
+          levels[i] = invert ? low : high;
           current[i] = 0;
         } else {
-          levels[i] = levels[i] + step;
+          levels[i] = invert ? (levels[i] - step) : (levels[i] + step);
         }
-      } else if (levels[i] > low) {
+      } else if (invert ? (levels[i] < high) : (levels[i] > low)) {
         // this pixel is falling
-        if (levels[i] - step < low) {
-          levels[i] = low;
+        if (invert ? (levels[i] + step > high) : (levels[i] - step < low)) {
+          levels[i] = invert ? high : low;
         } else {
-          levels[i] = levels[i] - step;
+          levels[i] = invert ? (levels[i] + step) : (levels[i] - step);
         }
       }
-      pixels.SetPixelColor(i, RgbColor(
-        levels[i] * eepromData.scalered / 255,
-        levels[i] * eepromData.scalegreen / 255,
-        levels[i] * eepromData.scaleblue / 255));
     }
-    pixels.Show();
     lastChange = millis();
+    refresh = true;
   }
+
+  if (func() || refresh) {
+    for (int i = 0; i < eepromData.pixelcount; i++)
+      applyTwinkleLevel(i, levels[i]);
+    pixels.Show();
+  }
+}
+
+boolean whiteNoShow() {
+  for (int i = 0; i < eepromData.pixelcount; i++) {
+    pixels.SetPixelColor(i, RgbColor(eepromData.scalered,
+                                         eepromData.scalegreen,
+                                         eepromData.scaleblue));
+  }
+  return false;
+}
+
+void whiteTwinkle() {
+  twinkle(whiteNoShow, 50, 255, 10, false);
+}
+
+void hsvScrollTwinkle() {
+  twinkle(hsvScrollNoShow, 50, 255, 10, true);
+}
+
+void hsvStaticTwinkle() {
+  twinkle(hsvStaticNoShow, 50, 255, 10, true);
+}
+
+void hsvFadeTwinkle() {
+  twinkle(hsvFadeNoShow, 50, 255, 10, true);
 }
 
 void christmasWork() {
@@ -547,13 +646,25 @@ void ledLoop() {
     christmasRedAndGreen();
     break;
   case 12:
-    twinkle();
+    whiteTwinkle();
     break;
   case 13:
     redNightLight();
     break;
   case 14:
     christmasWork();
+    break;
+  case 15:
+    hsvScrollTwinkle();
+    break;
+  case 16:
+    hsvStaticTwinkle();
+    break;
+  case 17:
+    hsvFadeTwinkle();
+    break;
+  case 18:
+    //knightRider();
     break;
   case 255:
     // network mode - no action
