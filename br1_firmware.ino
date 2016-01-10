@@ -1032,7 +1032,6 @@ void configuration_mode() {
   // go into access point mode
   WiFi.mode(WIFI_AP);
   WiFi.softAP(myhostname);
-  delay(100);
   ip = WiFi.softAPIP();
 
   // display access details
