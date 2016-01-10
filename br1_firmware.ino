@@ -946,6 +946,8 @@ void runUpdateHandler() {
 
   if (setDefault) {
     eepromData.defaultmode = ledMode;
+    Serial.print("Updated default mode=");
+    Serial.println(ledMode, DEC);
     EEPROM.put(0, eepromData);
     EEPROM.commit();
 
@@ -1007,6 +1009,15 @@ void runConfigUpdateHandler() {
     }
   }
   ledModeChanged = true;
+  Serial.println("Updated config:");
+  Serial.print("scalered=");
+  Serial.println(eepromData.scalered, DEC);
+  Serial.print("scalegreen=");
+  Serial.println(eepromData.scaleblue, DEC);
+  Serial.print("scaleblue=");
+  Serial.println(eepromData.scaleblue, DEC);
+  Serial.print("defaultmode=");
+  Serial.println(eepromData.defaultmode, DEC);
   EEPROM.put(0, eepromData);
   EEPROM.commit();
 
