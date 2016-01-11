@@ -1077,7 +1077,7 @@ void run_mode() {
     }
 
     pixels.setPixelCount(eepromData.pixelcount);
-    pixels.setType(eepromData.colourorder | NEO_KHZ800);
+    pixels.setType(eepromData.colourorder | NEO_KHZ800 | NEO_IRQLOCK);
     pixels.Begin();
 
     Udp.begin(udpPort);
