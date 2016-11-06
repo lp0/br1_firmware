@@ -55,9 +55,10 @@ const char *colourOrderNames[] = { "RGB", "GRB", "BRG", NULL };
 const uint16_t colourOrderValues[] = { NEO_RGB, NEO_GRB, NEO_BRG };
 
 const char *modeNames[255] = { "Black", "Red", "Dim red", "Green", "Yellow", "Blue", "Magenta", "Cyan", "White",
-  "HSV Scroll", "HSV Fade", "Christmas (Red and Green)", "White (Twinkle)", "Red night light", "Christmas (Work Colours)",
-  "HSV Scroll (Twinkle)", "HSV Static (Twinkle)", "HSV Fade (Twinkle)", "Knight Rider", "Knight Rider (HSV Fade)",
-  "Random 1 (slow)", "Random 1 (fast)", "Random 2 (slow)", "Random 2 (fast)", NULL };
+  "HSV Scroll", "HSV Fade", "Christmas (Red and Green)", "Christmas (Red and Green (Twinkle)", "White (Twinkle)",
+  "Red night light", "Christmas (Work)", "Christmas (Work (Twinkle))", "HSV Scroll (Twinkle)", "HSV Static (Twinkle)",
+  "HSV Fade (Twinkle)", "Knight Rider", "Knight Rider (HSV Fade)", "Random 1 (slow)", "Random 1 (fast)",
+  "Random 2 (slow)", "Random 2 (fast)", NULL };
 
 struct EepromData {
   uint8_t configured;
@@ -79,7 +80,7 @@ ESP8266WebServer server(80);
 WiFiUDP Udp;
 uint8_t inboundMessage[1500];
 uint8_t ledMode = 9;
-boolean ledModeChanged = false;
+boolean ledModeChanged = true;
 uint8_t buttonState = HIGH;
 
 void configuration_mode();
@@ -428,9 +429,11 @@ boolean hsvScrollNoShow() {
   return false;
 }
 
-void christmasRedAndGreen() {
+static RgbColor christmasRGValues[MAX_PIXELS];
+
+boolean christmasRedAndGreen(boolean show) {
   static unsigned long lastChange = 0;
-  unsigned long interval = 200;
+  unsigned long interval = show ? 200 : 1000;
   const RgbColor red = RgbColor(eepromData.scalered, 0, 0);
   const RgbColor green = RgbColor(0, eepromData.scalegreen, 0);
 
@@ -438,25 +441,53 @@ void christmasRedAndGreen() {
     // randomise all of the pixels
     for (int i = 0; i < eepromData.pixelcount; i++) {
       if (random(0, 2) == 0) {
+        christmasRGValues[i] = red;
         pixels.SetPixelColor(i, red);
       } else {
+        christmasRGValues[i] = green;
         pixels.SetPixelColor(i, green);
       }
     }
-    pixels.Show();
+    if (show)
+      pixels.Show();
     ledModeChanged = false;
+    lastChange = millis();
+    return true;
   }
 
   if (millis() - lastChange > interval) {
     int i = random(0, eepromData.pixelcount);
-    if (pixels.GetPixelColor(i) == green) {
-      pixels.SetPixelColor(i, red);
+    if (christmasRGValues[i] == green) {
+      christmasRGValues[i] = red;
+      if (show)
+        pixels.SetPixelColor(i, red);
     } else {
-      pixels.SetPixelColor(i, green);
+      christmasRGValues[i] = green;
+      if (show)
+        pixels.SetPixelColor(i, green);
     }
-    pixels.Show();
+    if (show) {
+      pixels.Show();
+    } else {
+      for (int i = 0; i < eepromData.pixelcount; i++)
+        pixels.SetPixelColor(i, christmasRGValues[i]);
+    }
     lastChange = millis();
+    return true;
   }
+
+  if (!show)
+    for (int i = 0; i < eepromData.pixelcount; i++)
+      pixels.SetPixelColor(i, christmasRGValues[i]);
+  return false;
+}
+
+void christmasRedAndGreen() {
+  christmasRedAndGreen(true);
+}
+
+boolean christmasRedAndGreenNoShow() {
+  return christmasRedAndGreen(false);
 }
 
 uint8_t applyTwinkleLevelC(uint8_t value, uint8_t level, uint8_t scale) {
@@ -549,6 +580,10 @@ void twinkle(boolean (*func)(void), uint8_t low, uint8_t high, uint8_t step, boo
   }
 }
 
+void christmasRedAndGreenTwinkle() {
+  twinkle(christmasRedAndGreenNoShow, 50, 255, 10, true);
+}
+
 boolean whiteNoShow() {
   for (int i = 0; i < eepromData.pixelcount; i++) {
     pixels.SetPixelColor(i, RgbColor(eepromData.scalered,
@@ -574,9 +609,11 @@ void hsvFadeTwinkle() {
   twinkle(hsvFadeNoShow, 50, 255, 10, true);
 }
 
-void christmasWork() {
+static RgbColor christmasWorkValues[MAX_PIXELS];
+
+boolean christmasWork(boolean show) {
   static unsigned long lastChange = 0;
-  unsigned long interval = 200;
+  unsigned long interval = show ? 200 : 1000;
   const RgbColor grey = RgbColor(74 * eepromData.scalered / 255, 79 * eepromData.scalegreen / 255, 85 * eepromData.scaleblue / 255);
   const RgbColor red = RgbColor(194 * eepromData.scalered / 255, 4 * eepromData.scalegreen / 255, 24 * eepromData.scaleblue / 255);
   const RgbColor lightBlue = RgbColor(0, 195 * eepromData.scalegreen / 255, 215 * eepromData.scaleblue / 255);
@@ -586,24 +623,54 @@ void christmasWork() {
 
   if (ledModeChanged) {
     // randomise all of the pixels
-    for (int i = 0; i < eepromData.pixelcount; i++)
-      pixels.SetPixelColor(i, colours[random(0, num_colours)]);
-    pixels.Show();
+    for (int i = 0; i < eepromData.pixelcount; i++) {
+      christmasWorkValues[i] = colours[random(0, num_colours)];
+      pixels.SetPixelColor(i, christmasWorkValues[i]);
+    }
+    if (show)
+      pixels.Show();
     ledModeChanged = false;
+    lastChange = millis();
+    return true;
   }
 
   if (millis() - lastChange > interval) {
     int i = random(0, eepromData.pixelcount);
     int n = random(1, num_colours);
     for (int j = 0; j < num_colours; j++) {
-      if (pixels.GetPixelColor(i) == colours[j]) {
-        pixels.SetPixelColor(i, colours[(j + n) % num_colours]);
+      if (christmasWorkValues[i] == colours[j]) {
+        christmasWorkValues[i] = colours[(j + n) % num_colours];
+        if (show)
+          pixels.SetPixelColor(i, christmasWorkValues[i]);
         break;
       }
     }
-    pixels.Show();
+    if (show) {
+      pixels.Show();
+    } else {
+      for (int i = 0; i < eepromData.pixelcount; i++)
+        pixels.SetPixelColor(i, christmasWorkValues[i]);
+    }
     lastChange = millis();
+    return true;
   }
+
+  if (!show)
+    for (int i = 0; i < eepromData.pixelcount; i++)
+      pixels.SetPixelColor(i, christmasWorkValues[i]);
+  return false;
+}
+
+void christmasWork() {
+  christmasWork(true);
+}
+
+boolean christmasWorkNoShow() {
+  return christmasWork(false);
+}
+
+void christmasWorkTwinkle() {
+  twinkle(christmasWorkNoShow, 50, 255, 10, true);
 }
 
 void knightRider(boolean hsvFade) {
@@ -612,7 +679,7 @@ void knightRider(boolean hsvFade) {
   static int dir = 1;
   unsigned long interval = 600 / eepromData.pixelcount;
   const uint8_t active = 12; // percentage fully bright
-  const uint8_t fade = 16; // percantage to fade off at each end
+  const uint8_t fade = 16; // percentage to fade off at each end
   const float fadeRate = 0.75f;
   int pActive = eepromData.pixelcount * active / 100 / 2;
   int pFade = eepromData.pixelcount * fade / 100;
@@ -821,39 +888,45 @@ void ledLoop() {
     christmasRedAndGreen();
     break;
   case 12:
-    whiteTwinkle();
+    christmasRedAndGreenTwinkle();
     break;
   case 13:
-    redNightLight();
+    whiteTwinkle();
     break;
   case 14:
-    christmasWork();
+    redNightLight();
     break;
   case 15:
-    hsvScrollTwinkle();
+    christmasWork();
     break;
   case 16:
-    hsvStaticTwinkle();
+    christmasWorkTwinkle();
     break;
   case 17:
-    hsvFadeTwinkle();
+    hsvScrollTwinkle();
     break;
   case 18:
-    knightRider(false);
+    hsvStaticTwinkle();
     break;
   case 19:
-    knightRider(true);
+    hsvFadeTwinkle();
     break;
   case 20:
-    random1(200);
+    knightRider(false);
     break;
   case 21:
-    random1(50);
+    knightRider(true);
     break;
   case 22:
-    random2(500);
+    random1(200);
     break;
   case 23:
+    random1(50);
+    break;
+  case 24:
+    random2(500);
+    break;
+  case 25:
     random2(200);
     break;
   case 255:
@@ -1088,6 +1161,7 @@ void run_mode() {
     server.on("/uptime", runUptimeHandler);
     server.begin();
     ledMode = eepromData.defaultmode;
+    ledModeChanged = true;
     Serial.print("Ready, mode=");
     Serial.println(ledMode, DEC);
 }
