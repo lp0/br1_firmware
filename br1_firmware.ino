@@ -57,8 +57,9 @@ const uint16_t colourOrderValues[] = { NEO_RGB, NEO_GRB, NEO_BRG };
 const char *modeNames[255] = { "Black", "Red", "Dim red", "Green", "Yellow", "Blue", "Magenta", "Cyan", "White",
   "HSV Scroll", "HSV Fade", "Christmas (Red and Green)", "Christmas (Red and Green (Twinkle)", "White (Twinkle)",
   "Red night light", "Christmas (Work)", "Christmas (Work (Twinkle))", "HSV Scroll (Twinkle)", "HSV Static (Twinkle)",
-  "HSV Fade (Twinkle)", "Knight Rider", "Knight Rider (HSV Fade)", "Random 1 (slow)", "Random 1 (fast)",
-  "Random 2 (slow)", "Random 2 (fast)", NULL };
+  "HSV Fade (Twinkle)", "Knight Rider", "Knight Rider (HSV Fade)", "Single Random 1 (slow)", "Single Random 1 (fast)",
+  "Full Random 1 (slow)", "Full Random 1 (fast)", "Single Random 2 (slow)", "Single Random 2 (fast)",
+  "Full Random 2 (slow)", "Full Random 2 (fast)", NULL };
 
 struct EepromData {
   uint8_t configured;
@@ -770,7 +771,7 @@ void knightRider(boolean hsvFade) {
   }
 }
 
-RgbColor makeRandom() {
+RgbColor makeRandom1(void) {
   RgbColor tmp = RgbColor(HslColor(random(0, 256) / 255.0f, random(128, 256) / 255.0f, random(64, 128) / 255.0f));
   tmp.R = tmp.R * eepromData.scalered / 255;
   tmp.G = tmp.G * eepromData.scalegreen / 255;
@@ -778,7 +779,11 @@ RgbColor makeRandom() {
   return tmp;
 }
 
-void random1(unsigned long interval) {
+RgbColor makeRandom2(void) {
+  return ledExpHSV(random(0, HUE_EXP_MAX), 1.0, 1.0);
+}
+
+void random_single(RgbColor (*makeRandom)(void), unsigned long interval) {
   static unsigned long lastChange = 0;
 
   if (ledModeChanged) {
@@ -797,7 +802,7 @@ void random1(unsigned long interval) {
   }
 }
 
-void random2(unsigned long interval) {
+void random_full(RgbColor (*makeRandom)(void), unsigned long interval) {
   static unsigned long lastChange = 0;
 
   if (ledModeChanged) {
@@ -810,29 +815,7 @@ void random2(unsigned long interval) {
 
   if (millis() - lastChange > interval) {
     for (int i = 0; i < eepromData.pixelcount; i++) {
-      RgbColor tmp = RgbColor(pixels.GetPixelColor(i));
-      tmp.R = tmp.R * 255 / eepromData.scalered;
-      tmp.G = tmp.G * 255 / eepromData.scalegreen;
-      tmp.B = tmp.B * 255 / eepromData.scaleblue;
-
-      HslColor tmp2 = HslColor(tmp);
-      switch (random(0, 3)) {
-      case 0:
-        tmp2.H = random(0, 256) / 255.0f;
-        break;
-      case 1:
-        tmp2.S = random(128, 256) / 255.0f;
-        break;
-      case 2:
-        tmp2.L = random(64, 128) / 255.0f;
-        break;
-      }
-
-      RgbColor tmp3 = RgbColor(tmp2);
-      tmp3.R = tmp3.R * eepromData.scalered / 255;
-      tmp3.G = tmp3.G * eepromData.scalegreen / 255;
-      tmp3.B = tmp3.B * eepromData.scaleblue / 255;
-      pixels.SetPixelColor(i, tmp3);
+         pixels.SetPixelColor(i, makeRandom());
     }
     pixels.Show();
     lastChange = millis();
@@ -918,16 +901,28 @@ void ledLoop() {
     knightRider(true);
     break;
   case 22:
-    random1(200);
+    random_single(makeRandom1, 200);
     break;
   case 23:
-    random1(50);
+    random_single(makeRandom1, 50);
     break;
   case 24:
-    random2(500);
+    random_full(makeRandom1, 500);
     break;
   case 25:
-    random2(200);
+    random_full(makeRandom1, 200);
+    break;
+  case 26:
+    random_single(makeRandom2, 200);
+    break;
+  case 27:
+    random_single(makeRandom2, 50);
+    break;
+  case 28:
+    random_full(makeRandom2, 500);
+    break;
+  case 29:
+    random_full(makeRandom2, 200);
     break;
   case 255:
     // network mode - no action
