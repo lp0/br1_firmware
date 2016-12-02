@@ -1,3 +1,14 @@
+# Device
+
+* Board: Generic ESP8266 Module
+* Flash Mode: DIO
+* Flash Frequency: 40MHz
+* CPU Frequency: 160MHz
+* Flash Size: 4M (3M SPIFFS)
+* Reset Method: ck
+* Programmer: AVRISP mkII
+
+
 # Configuration Mode
 
 The firmware will enter configuration mode if the EEPROM storage is empty, or
