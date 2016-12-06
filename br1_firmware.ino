@@ -37,7 +37,7 @@ extern "C" {
 #define DEBUG_PRINTLN(x)
 #endif
 
-#define MAX_PIXELS 1024
+#define MAX_PIXELS 250
 
 #define HUE_MAX 360
 #define HUE_EXP_RANGE 60
@@ -67,11 +67,17 @@ struct EepromData {
   char passphrase[128];
   uint16_t pixelcount;
   uint16_t colourorder;
-  uint8_t scalered;
-  uint8_t scalegreen;
-  uint8_t scaleblue;
+  uint8_t scale0red;
+  uint8_t scale0green;
+  uint8_t scale0blue;
   uint8_t defaultmode;
   uint8_t wifimode;
+  uint8_t scale50red;
+  uint8_t scale50green;
+  uint8_t scale50blue;
+  uint8_t scale100red;
+  uint8_t scale100green;
+  uint8_t scale100blue;
 } eepromData;
 
 char myhostname[64];
@@ -84,12 +90,17 @@ uint8_t ledMode = 9;
 boolean ledModeChanged = true;
 uint8_t buttonState = HIGH;
 
+uint8_t scalered[MAX_PIXELS];
+uint8_t scalegreen[MAX_PIXELS];
+uint8_t scaleblue[MAX_PIXELS];
+
 void configuration_mode();
 void run_mode();
 void udpLoop();
 void tcpLoop();
 void ledLoop();
 void singleColour(uint8_t red, uint8_t green, uint8_t blue);
+void makeScale();
 
 void setup() {
   boolean configMode = false;
@@ -248,12 +259,32 @@ void tcpLoop() {
   server.handleClient();
 }
 
+void makeScale() {
+  for (int i = 0; i < 50; i++) {
+    scalered[i] = eepromData.scale0red;
+    scalegreen[i] = eepromData.scale0green;
+    scaleblue[i] = eepromData.scale0blue;
+  }
+
+  for (int i = 50; i < 100; i++) {
+    scalered[i] = eepromData.scale50red;
+    scalegreen[i] = eepromData.scale50green;
+    scaleblue[i] = eepromData.scale50blue;
+  }
+
+  for (int i = 100; i < MAX_PIXELS; i++) {
+    scalered[i] = eepromData.scale100red;
+    scalegreen[i] = eepromData.scale100green;
+    scaleblue[i] = eepromData.scale100blue;
+  }
+}
+
 void singleColour(uint8_t red, uint8_t green, uint8_t blue) {
 
   for (int i = 0; i < eepromData.pixelcount; i++) {
-    pixels.SetPixelColor(i, RgbColor(red * eepromData.scalered / 255,
-                                         green * eepromData.scalegreen / 255,
-                                         blue * eepromData.scaleblue / 255));
+    pixels.SetPixelColor(i, RgbColor(red * scalered[i] / 255,
+                                         green * scalegreen[i] / 255,
+                                         blue * scaleblue[i] / 255));
   }
   pixels.Show();
 }
@@ -287,7 +318,7 @@ void redNightLight() {
 //  s is saturation value, double between 0 and 1
 //  v is value, double between 0 and 1
 // http://splinter.com.au/blog/?p=29
-RgbColor ledHSV(int h, double s, double v) {
+RgbColor ledHSV(int h, double s, double v, int pos) {
   double r = 0;
   double g = 0;
   double b = 0;
@@ -338,16 +369,16 @@ RgbColor ledHSV(int h, double s, double v) {
   int green = constrain((int)255 * g, 0, 255);
   int blue = constrain((int)255 * b, 0, 255);
 
-  return RgbColor(red * eepromData.scalered / 255,
-                      green * eepromData.scalegreen / 255,
-                      blue * eepromData.scaleblue / 255);
+  return RgbColor(red * scalered[pos] / 255,
+                      green * scalegreen[pos] / 255,
+                      blue * scaleblue[pos] / 255);
 }
 
-RgbColor ledExpHSV(int h, double s, double v) {
+RgbColor ledExpHSV(int h, double s, double v, int pos) {
   if (h < (HUE_EXP_TIMES * HUE_EXP_RANGE))
-    return ledHSV(h / HUE_EXP_TIMES, s, v);
+    return ledHSV(h / HUE_EXP_TIMES, s, v, pos);
   else
-    return ledHSV(h - ((HUE_EXP_TIMES - 1) * HUE_EXP_RANGE), s, v);
+    return ledHSV(h - ((HUE_EXP_TIMES - 1) * HUE_EXP_RANGE), s, v, pos);
 }
 
 void hsvFade() {
@@ -357,7 +388,7 @@ void hsvFade() {
 
   if (millis() - lastChange > interval) {
     for (int i = 0; i < eepromData.pixelcount; i++) {
-      pixels.SetPixelColor(i, ledExpHSV(hue, 1.0, 1.0));
+      pixels.SetPixelColor(i, ledExpHSV(hue, 1.0, 1.0, i));
     }
     pixels.Show();
     hue++;
@@ -372,7 +403,7 @@ boolean hsvFadeNoShow() {
   unsigned long interval = 50;
 
   for (int i = 0; i < eepromData.pixelcount; i++) {
-    pixels.SetPixelColor(i, ledExpHSV(hue, 1.0, 1.0));
+    pixels.SetPixelColor(i, ledExpHSV(hue, 1.0, 1.0, i));
   }
 
   if (millis() - lastChange > interval) {
@@ -386,7 +417,7 @@ boolean hsvFadeNoShow() {
 
 boolean hsvStaticNoShow() {
   for (int i = 0; i < eepromData.pixelcount; i++) {
-    pixels.SetPixelColor(i, ledExpHSV(i * HUE_EXP_MAX / eepromData.pixelcount, 1.0, 1.0));
+    pixels.SetPixelColor(i, ledExpHSV(i * HUE_EXP_MAX / eepromData.pixelcount, 1.0, 1.0, i));
   }
   return false;
 }
@@ -403,7 +434,7 @@ void hsvScroll() {
 
   if (millis() - lastChange > interval) {
     for (int i = 0; i < eepromData.pixelcount; i++) {
-      pixels.SetPixelColor(i, ledExpHSV(((i * HUE_EXP_MAX / eepromData.pixelcount) + hue) % HUE_EXP_MAX, 1.0, 1.0));
+      pixels.SetPixelColor(i, ledExpHSV(((i * HUE_EXP_MAX / eepromData.pixelcount) + hue) % HUE_EXP_MAX, 1.0, 1.0, i));
     }
     pixels.Show();
     hue++;
@@ -418,7 +449,7 @@ boolean hsvScrollNoShow() {
   unsigned long interval = 50;
 
   for (int i = 0; i < eepromData.pixelcount; i++) {
-    pixels.SetPixelColor(i, ledExpHSV(((i * HUE_EXP_MAX / eepromData.pixelcount) + hue) % HUE_EXP_MAX, 1.0, 1.0));
+    pixels.SetPixelColor(i, ledExpHSV(((i * HUE_EXP_MAX / eepromData.pixelcount) + hue) % HUE_EXP_MAX, 1.0, 1.0, i));
   }
 
   if (millis() - lastChange > interval) {
@@ -435,12 +466,13 @@ static RgbColor christmasRGValues[MAX_PIXELS];
 boolean christmasRedAndGreen(boolean show) {
   static unsigned long lastChange = 0;
   unsigned long interval = show ? 200 : 1000;
-  const RgbColor red = RgbColor(eepromData.scalered, 0, 0);
-  const RgbColor green = RgbColor(0, eepromData.scalegreen, 0);
 
   if (ledModeChanged) {
     // randomise all of the pixels
     for (int i = 0; i < eepromData.pixelcount; i++) {
+      const RgbColor red = RgbColor(scalered[i], 0, 0);
+      const RgbColor green = RgbColor(0, scalegreen[i], 0);
+     
       if (random(0, 2) == 0) {
         christmasRGValues[i] = red;
         pixels.SetPixelColor(i, red);
@@ -458,6 +490,9 @@ boolean christmasRedAndGreen(boolean show) {
 
   if (millis() - lastChange > interval) {
     int i = random(0, eepromData.pixelcount);
+    const RgbColor red = RgbColor(scalered[i], 0, 0);
+    const RgbColor green = RgbColor(0, scalegreen[i], 0);
+
     if (christmasRGValues[i] == green) {
       christmasRGValues[i] = red;
       if (show)
@@ -509,9 +544,9 @@ void applyTwinkleLevel(int i, uint8_t level) {
   tmp = pixels.GetPixelColor(i);
 
 #if 0
-  tmp.R = applyTwinkleLevelC(tmp.R, level, eepromData.scalered);
-  tmp.G = applyTwinkleLevelC(tmp.G, level, eepromData.scalegreen);
-  tmp.B = applyTwinkleLevelC(tmp.B, level, eepromData.scaleblue);
+  tmp.R = applyTwinkleLevelC(tmp.R, level, scalered[i]);
+  tmp.G = applyTwinkleLevelC(tmp.G, level, scalegreen[i]);
+  tmp.B = applyTwinkleLevelC(tmp.B, level, scaleblue[i]);
 #endif
 
   hsb = HsbColor(tmp);
@@ -587,9 +622,9 @@ void christmasRedAndGreenTwinkle() {
 
 boolean whiteNoShow() {
   for (int i = 0; i < eepromData.pixelcount; i++) {
-    pixels.SetPixelColor(i, RgbColor(eepromData.scalered,
-                                         eepromData.scalegreen,
-                                         eepromData.scaleblue));
+    pixels.SetPixelColor(i, RgbColor(scalered[i],
+                                         scalegreen[i],
+                                         scaleblue[i]));
   }
   return false;
 }
@@ -615,16 +650,17 @@ static RgbColor christmasWorkValues[MAX_PIXELS];
 boolean christmasWork(boolean show) {
   static unsigned long lastChange = 0;
   unsigned long interval = show ? 200 : 1000;
-  const RgbColor grey = RgbColor(74 * eepromData.scalered / 255, 79 * eepromData.scalegreen / 255, 85 * eepromData.scaleblue / 255);
-  const RgbColor red = RgbColor(194 * eepromData.scalered / 255, 4 * eepromData.scalegreen / 255, 24 * eepromData.scaleblue / 255);
-  const RgbColor lightBlue = RgbColor(0, 195 * eepromData.scalegreen / 255, 215 * eepromData.scaleblue / 255);
-  const RgbColor darkBlue = RgbColor(0, 51 * eepromData.scalegreen / 255, 161 * eepromData.scaleblue / 255);
-  const RgbColor colours[4] = { grey, red, lightBlue, darkBlue };
-  const int num_colours = sizeof(colours)/sizeof(RgbColor);
 
   if (ledModeChanged) {
     // randomise all of the pixels
     for (int i = 0; i < eepromData.pixelcount; i++) {
+      const RgbColor grey = RgbColor(74 * scalered[i] / 255, 79 * scalegreen[i] / 255, 85 * scaleblue[i] / 255);
+      const RgbColor red = RgbColor(194 * scalered[i] / 255, 4 * scalegreen[i] / 255, 24 * scaleblue[i] / 255);
+      const RgbColor lightBlue = RgbColor(0, 195 * scalegreen[i] / 255, 215 * scaleblue[i] / 255);
+      const RgbColor darkBlue = RgbColor(0, 51 * scalegreen[i] / 255, 161 * scaleblue[i] / 255);
+      const RgbColor colours[4] = { grey, red, lightBlue, darkBlue };
+      const int num_colours = sizeof(colours)/sizeof(RgbColor);
+
       christmasWorkValues[i] = colours[random(0, num_colours)];
       pixels.SetPixelColor(i, christmasWorkValues[i]);
     }
@@ -637,7 +673,14 @@ boolean christmasWork(boolean show) {
 
   if (millis() - lastChange > interval) {
     int i = random(0, eepromData.pixelcount);
+    const RgbColor grey = RgbColor(74 * scalered[i] / 255, 79 * scalegreen[i] / 255, 85 * scaleblue[i] / 255);
+    const RgbColor red = RgbColor(194 * scalered[i] / 255, 4 * scalegreen[i] / 255, 24 * scaleblue[i] / 255);
+    const RgbColor lightBlue = RgbColor(0, 195 * scalegreen[i] / 255, 215 * scaleblue[i] / 255);
+    const RgbColor darkBlue = RgbColor(0, 51 * scalegreen[i] / 255, 161 * scaleblue[i] / 255);
+    const RgbColor colours[4] = { grey, red, lightBlue, darkBlue };
+    const int num_colours = sizeof(colours)/sizeof(RgbColor);
     int n = random(1, num_colours);
+
     for (int j = 0; j < num_colours; j++) {
       if (christmasWorkValues[i] == colours[j]) {
         christmasWorkValues[i] = colours[(j + n) % num_colours];
@@ -723,16 +766,17 @@ void knightRider(boolean hsvFade) {
   }
 
   if (refresh) {
-    RgbColor base;
-
-    if (hsvFade) {
-      base = ledExpHSV(hue, 1.0, 1.0);
-    } else {
-      base = RgbColor(eepromData.scalered, 16 * eepromData.scalegreen / 255, 0);
-    }
-
     for (int i = 0; i < eepromData.pixelcount; i++) {
-      HsbColor tmp = HsbColor(base);
+      RgbColor base;
+      HsbColor tmp;
+
+      if (hsvFade) {
+        base = ledExpHSV(hue, 1.0, 1.0, i);
+      } else {
+        base = RgbColor(scalered[i], 16 * scalegreen[i] / 255, 0);
+      }
+
+      tmp = HsbColor(base);
 
       if (i >= pos - pActive && i <= pos + pActive) {
         // full brightness
@@ -771,51 +815,51 @@ void knightRider(boolean hsvFade) {
   }
 }
 
-RgbColor makeRandom1(void) {
+RgbColor makeRandom1(int pos) {
   RgbColor tmp = RgbColor(HslColor(random(0, 256) / 255.0f, random(128, 256) / 255.0f, random(64, 128) / 255.0f));
-  tmp.R = tmp.R * eepromData.scalered / 255;
-  tmp.G = tmp.G * eepromData.scalegreen / 255;
-  tmp.B = tmp.B * eepromData.scaleblue / 255;
+  tmp.R = tmp.R * scalered[pos] / 255;
+  tmp.G = tmp.G * scalegreen[pos] / 255;
+  tmp.B = tmp.B * scaleblue[pos] / 255;
   return tmp;
 }
 
-RgbColor makeRandom2(void) {
-  return ledExpHSV(random(0, HUE_EXP_MAX), 1.0, 1.0);
+RgbColor makeRandom2(int pos) {
+  return ledExpHSV(random(0, HUE_EXP_MAX), 1.0, 1.0, pos);
 }
 
-void random_single(RgbColor (*makeRandom)(void), unsigned long interval) {
+void random_single(RgbColor (*makeRandom)(int), unsigned long interval) {
   static unsigned long lastChange = 0;
 
   if (ledModeChanged) {
     // randomise all of the pixels
     for (int i = 0; i < eepromData.pixelcount; i++)
-      pixels.SetPixelColor(i, makeRandom());
+      pixels.SetPixelColor(i, makeRandom(i));
     pixels.Show();
     ledModeChanged = false;
   }
 
   if (millis() - lastChange > interval) {
     int i = random(0, eepromData.pixelcount);
-    pixels.SetPixelColor(i, makeRandom());
+    pixels.SetPixelColor(i, makeRandom(i));
     pixels.Show();
     lastChange = millis();
   }
 }
 
-void random_full(RgbColor (*makeRandom)(void), unsigned long interval) {
+void random_full(RgbColor (*makeRandom)(int), unsigned long interval) {
   static unsigned long lastChange = 0;
 
   if (ledModeChanged) {
     // randomise all of the pixels
     for (int i = 0; i < eepromData.pixelcount; i++)
-      pixels.SetPixelColor(i, makeRandom());
+      pixels.SetPixelColor(i, makeRandom(i));
     pixels.Show();
     ledModeChanged = false;
   }
 
   if (millis() - lastChange > interval) {
     for (int i = 0; i < eepromData.pixelcount; i++) {
-         pixels.SetPixelColor(i, makeRandom());
+         pixels.SetPixelColor(i, makeRandom(i));
     }
     pixels.Show();
     lastChange = millis();
@@ -939,7 +983,7 @@ void runRootHandler() {
 
   String form;
 
-  form.reserve(2252);
+  form.reserve(2560);
   form += "<!DOCTYPE html>"
       "<html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
       "<style type=\"text/css\">"
@@ -1037,20 +1081,42 @@ void runUpdateHandler() {
 void runConfigHandler() {
   String form;
 
-  form.reserve(480);
+  form.reserve(1024);
   form += "<!DOCTYPE html>"
       "<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"></head>"
       "<form method=\"POST\" action=\"apply2\">";
 
-  form += "Scaling: "
-      "R<input type=\"number\" name=\"scalered\" min=\"0\" max=\"255\" value=\"";
-  form += eepromData.scalered;
+  form += "Scaling (0-49): "
+      "R<input type=\"number\" name=\"scale0red\" min=\"0\" max=\"255\" value=\"";
+  form += eepromData.scale0red;
   form += "\"/>"
-      "G<input type=\"number\" name=\"scalegreen\" min=\"0\" max=\"255\" value=\"";
-  form += eepromData.scalegreen;
+      "G<input type=\"number\" name=\"scale0green\" min=\"0\" max=\"255\" value=\"";
+  form += eepromData.scale0green;
   form += "\"/>"
-      "B<input type=\"number\" name=\"scaleblue\" min=\"0\" max=\"255\" value=\"";
-  form += eepromData.scaleblue;
+      "B<input type=\"number\" name=\"scale0blue\" min=\"0\" max=\"255\" value=\"";
+  form += eepromData.scale0blue;
+  form += "\"/><br/>";
+
+  form += "Scaling (50-99): "
+      "R<input type=\"number\" name=\"scale50red\" min=\"0\" max=\"255\" value=\"";
+  form += eepromData.scale50red;
+  form += "\"/>"
+      "G<input type=\"number\" name=\"scale50green\" min=\"0\" max=\"255\" value=\"";
+  form += eepromData.scale50green;
+  form += "\"/>"
+      "B<input type=\"number\" name=\"scale50blue\" min=\"0\" max=\"255\" value=\"";
+  form += eepromData.scale50blue;
+  form += "\"/><br/>";
+
+  form += "Scaling (100-149): "
+      "R<input type=\"number\" name=\"scale100red\" min=\"0\" max=\"255\" value=\"";
+  form += eepromData.scale100red;
+  form += "\"/>"
+      "G<input type=\"number\" name=\"scale100green\" min=\"0\" max=\"255\" value=\"";
+  form += eepromData.scale100green;
+  form += "\"/>"
+      "B<input type=\"number\" name=\"scale100blue\" min=\"0\" max=\"255\" value=\"";
+  form += eepromData.scale100blue;
   form += "\"/><br/>";
 
   form += "Default Mode: <input type=\"number\" name=\"defaultmode\" min=\"0\" max=\"255\" value=\"";
@@ -1063,27 +1129,58 @@ void runConfigHandler() {
 
 void runConfigUpdateHandler() {
   for (uint8_t i = 0; i < server.args(); i++) {
-    if (server.argName(i) == "scalered") {
-      eepromData.scalered = server.arg(i).toInt();
+    if (server.argName(i) == "scale0red") {
+      eepromData.scale0red = server.arg(i).toInt();
     }
-    if (server.argName(i) == "scalegreen") {
-      eepromData.scalegreen = server.arg(i).toInt();
+    if (server.argName(i) == "scale0green") {
+      eepromData.scale0green = server.arg(i).toInt();
     }
-    if (server.argName(i) == "scaleblue") {
-      eepromData.scaleblue = server.arg(i).toInt();
+    if (server.argName(i) == "scale0blue") {
+      eepromData.scale0blue = server.arg(i).toInt();
+    }
+    if (server.argName(i) == "scale50red") {
+      eepromData.scale50red = server.arg(i).toInt();
+    }
+    if (server.argName(i) == "scale50green") {
+      eepromData.scale50green = server.arg(i).toInt();
+    }
+    if (server.argName(i) == "scale50blue") {
+      eepromData.scale50blue = server.arg(i).toInt();
+    }
+    if (server.argName(i) == "scale100red") {
+      eepromData.scale100red = server.arg(i).toInt();
+    }
+    if (server.argName(i) == "scale100green") {
+      eepromData.scale100green = server.arg(i).toInt();
+    }
+    if (server.argName(i) == "scale100blue") {
+      eepromData.scale100blue = server.arg(i).toInt();
     }
     if (server.argName(i) == "defaultmode") {
       eepromData.defaultmode = server.arg(i).toInt();
     }
   }
+  makeScale();
   ledModeChanged = true;
   Serial.println("Updated config:");
-  Serial.print("scalered=");
-  Serial.println(eepromData.scalered, DEC);
-  Serial.print("scalegreen=");
-  Serial.println(eepromData.scaleblue, DEC);
-  Serial.print("scaleblue=");
-  Serial.println(eepromData.scaleblue, DEC);
+  Serial.print("scale0red=");
+  Serial.println(eepromData.scale0red, DEC);
+  Serial.print("scale0green=");
+  Serial.println(eepromData.scale0green, DEC);
+  Serial.print("scale0blue=");
+  Serial.println(eepromData.scale0blue, DEC);
+  Serial.print("scale50red=");
+  Serial.println(eepromData.scale50red, DEC);
+  Serial.print("scale50green=");
+  Serial.println(eepromData.scale50green, DEC);
+  Serial.print("scale50blue=");
+  Serial.println(eepromData.scale50blue, DEC);
+  Serial.print("scale100red=");
+  Serial.println(eepromData.scale100red, DEC);
+  Serial.print("scale100green=");
+  Serial.println(eepromData.scale100green, DEC);
+  Serial.print("scale100blue=");
+  Serial.println(eepromData.scale100blue, DEC);
   Serial.print("defaultmode=");
   Serial.println(eepromData.defaultmode, DEC);
   EEPROM.put(0, eepromData);
@@ -1144,6 +1241,7 @@ void run_mode() {
       break;
     }
 
+    makeScale();
     pixels.setPixelCount(eepromData.pixelcount);
     pixels.setType(eepromData.colourorder | NEO_KHZ800 | NEO_IRQLOCK);
     pixels.Begin();
@@ -1210,15 +1308,37 @@ void configRootHandler() {
   }
   form += "</select><br/>";
 
-  form += "Scaling: "
-      "R<input type=\"number\" name=\"scalered\" min=\"0\" max=\"255\" value=\"";
-  form += (eepromData.configured == 1 ? eepromData.scalered : 255);
+  form += "Scaling (0-49): "
+      "R<input type=\"number\" name=\"scale0red\" min=\"0\" max=\"255\" value=\"";
+  form += (eepromData.configured == 1 ? eepromData.scale0red : 255);
+  form += "\"/>"
+      "G<input type=\"number\" name=\"scale0green\" min=\"0\" max=\"255\" value=\"";
+  form += (eepromData.configured == 1 ? eepromData.scale0green : 255);
+  form += "\"/>"
+      "B<input type=\"number\" name=\"scale0blue\" min=\"0\" max=\"255\" value=\"";
+  form += (eepromData.configured == 1 ? eepromData.scale0blue : 255);
+  form += "\"/><br/>";
+
+  form += "Scaling (50-99): "
+      "R<input type=\"number\" name=\"scale50red\" min=\"0\" max=\"255\" value=\"";
+  form += (eepromData.configured == 1 ? eepromData.scale50red : 255);
+  form += "\"/>"
+      "G<input type=\"number\" name=\"scale50green\" min=\"0\" max=\"255\" value=\"";
+  form += (eepromData.configured == 1 ? eepromData.scale50green : 255);
+  form += "\"/>"
+      "B<input type=\"number\" name=\"scale50blue\" min=\"0\" max=\"255\" value=\"";
+  form += (eepromData.configured == 1 ? eepromData.scale50blue : 255);
+  form += "\"/><br/>";
+
+  form += "Scaling (100-149): "
+      "R<input type=\"number\" name=\"scale100red\" min=\"0\" max=\"255\" value=\"";
+  form += (eepromData.configured == 1 ? eepromData.scale100red : 255);
   form += "\"/>"
       "G<input type=\"number\" name=\"scalegreen\" min=\"0\" max=\"255\" value=\"";
-  form += (eepromData.configured == 1 ? eepromData.scalegreen : 255);
+  form += (eepromData.configured == 1 ? eepromData.scale100green : 255);
   form += "\"/>"
       "B<input type=\"number\" name=\"scaleblue\" min=\"0\" max=\"255\" value=\"";
-  form += (eepromData.configured == 1 ? eepromData.scaleblue : 255);
+  form += (eepromData.configured == 1 ? eepromData.scale100blue : 255);
   form += "\"/><br/>";
 
   form += "Default Mode: <input type=\"number\" name=\"defaultmode\" min=\"0\" max=\"255\" value=\"";
@@ -1248,14 +1368,32 @@ void configUpdateHandler() {
     if (server.argName(i) == "colourorder") {
       eepromData.colourorder = server.arg(i).toInt();
     }
-    if (server.argName(i) == "scalered") {
-      eepromData.scalered = server.arg(i).toInt();
+    if (server.argName(i) == "scale0red") {
+      eepromData.scale0red = server.arg(i).toInt();
     }
-    if (server.argName(i) == "scalegreen") {
-      eepromData.scalegreen = server.arg(i).toInt();
+    if (server.argName(i) == "scale0green") {
+      eepromData.scale0green = server.arg(i).toInt();
     }
-    if (server.argName(i) == "scaleblue") {
-      eepromData.scaleblue = server.arg(i).toInt();
+    if (server.argName(i) == "scale0blue") {
+      eepromData.scale0blue = server.arg(i).toInt();
+    }
+    if (server.argName(i) == "scale50red") {
+      eepromData.scale50red = server.arg(i).toInt();
+    }
+    if (server.argName(i) == "scale50green") {
+      eepromData.scale50green = server.arg(i).toInt();
+    }
+    if (server.argName(i) == "scale50blue") {
+      eepromData.scale50blue = server.arg(i).toInt();
+    }
+    if (server.argName(i) == "scale100red") {
+      eepromData.scale100red = server.arg(i).toInt();
+    }
+    if (server.argName(i) == "scale100green") {
+      eepromData.scale100green = server.arg(i).toInt();
+    }
+    if (server.argName(i) == "scale100blue") {
+      eepromData.scale100blue = server.arg(i).toInt();
     }
     if (server.argName(i) == "defaultmode") {
       eepromData.defaultmode = server.arg(i).toInt();
@@ -1271,15 +1409,16 @@ void configUpdateHandler() {
 
   // set first three pixels to Red-Green-Blue using the updated configuration
   // set the last pixel to White
+  makeScale();
   pixels.setPixelCount(eepromData.pixelcount);
   pixels.setType(eepromData.colourorder | NEO_KHZ800);
   pixels.Begin();
   singleColour(0, 0, 0);
-  pixels.SetPixelColor(0, RgbColor(eepromData.scalered, 0, 0));
-  pixels.SetPixelColor(1, RgbColor(0, eepromData.scalegreen, 0));
-  pixels.SetPixelColor(2, RgbColor(0, 0, eepromData.scaleblue));
+  pixels.SetPixelColor(0, RgbColor(eepromData.scale0red, 0, 0));
+  pixels.SetPixelColor(1, RgbColor(0, eepromData.scale0green, 0));
+  pixels.SetPixelColor(2, RgbColor(0, 0, eepromData.scale0blue));
   pixels.SetPixelColor(eepromData.pixelcount - 1,
-    RgbColor(eepromData.scalered, eepromData.scalegreen, eepromData.scaleblue));
+    RgbColor(eepromData.scale0red, eepromData.scale0green, eepromData.scale0blue));
   pixels.Show();
 }
 
@@ -1316,12 +1455,24 @@ void configuration_mode() {
   Serial.println(eepromData.pixelcount);
   Serial.print("colourorder=");
   Serial.println(eepromData.colourorder);
-  Serial.print("scalered=");
-  Serial.println(eepromData.scalered);
-  Serial.print("scalegreen=");
-  Serial.println(eepromData.scalegreen);
-  Serial.print("scaleblue=");
-  Serial.println(eepromData.scaleblue);
+  Serial.print("scale0red=");
+  Serial.println(eepromData.scale0red);
+  Serial.print("scale0green=");
+  Serial.println(eepromData.scale0green);
+  Serial.print("scale0blue=");
+  Serial.println(eepromData.scale0blue);
+  Serial.print("scale50red=");
+  Serial.println(eepromData.scale50red);
+  Serial.print("scale50green=");
+  Serial.println(eepromData.scale50green);
+  Serial.print("scale50blue=");
+  Serial.println(eepromData.scale50blue);
+  Serial.print("scale100red=");
+  Serial.println(eepromData.scale100red);
+  Serial.print("scale100green=");
+  Serial.println(eepromData.scale100green);
+  Serial.print("scale100blue=");
+  Serial.println(eepromData.scale100blue);
   Serial.print("defaultmode=");
   Serial.println(eepromData.defaultmode);
   Serial.print("wifimode=");
