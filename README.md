@@ -9,6 +9,11 @@
 * Programmer: AVRISP mkII
 
 
+# ESP8266 Board
+
+* Link ~/.arduino15/packages/esp8266/hardware/esp8266/2.1.0-rc1 to custom libraries
+
+
 # Configuration Mode
 
 The firmware will enter configuration mode if the EEPROM storage is empty, or
