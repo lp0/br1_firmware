@@ -54,9 +54,9 @@ const char *wifiModeNames[] = { "STA", "AP", NULL };
 const char *colourOrderNames[] = { "RGB", "GRB", "BRG", NULL };
 const uint16_t colourOrderValues[] = { NEO_RGB, NEO_GRB, NEO_BRG };
 
-const char *modeNames[255] = { "Black", "Red", "Dim red", "Green", "Yellow", "Blue", "Magenta", "Cyan", "White",
+const char *modeNames[255] = { "Black", "Red", "Green", "Yellow", "Blue", "Magenta", "Cyan", "White",
   "HSV Scroll", "HSV Fade", "Christmas (Red and Green)", "Christmas (Red and Green (Twinkle)", "White (Twinkle)",
-  "Red night light", "Christmas (Work)", "Christmas (Work (Twinkle))", "HSV Scroll (Twinkle)", "HSV Static (Twinkle)",
+  "Christmas (Work)", "Christmas (Work (Twinkle))", "HSV Scroll (Twinkle)", "HSV Static (Twinkle)",
   "HSV Fade (Twinkle)", "Knight Rider", "Knight Rider (HSV Fade)", "Single Random 1 (slow)", "Single Random 1 (fast)",
   "Full Random 1 (slow)", "Full Random 1 (fast)", "Single Random 2 (slow)", "Single Random 2 (fast)",
   "Full Random 2 (slow)", "Full Random 2 (fast)", NULL };
@@ -878,94 +878,87 @@ void ledLoop() {
     singleColour(255, 0, 0);
     break;
   case 2:
-    // dim red
-    singleColour(63, 0, 0);
-    break;
-  case 3:
     // green
     singleColour(0, 255, 0);
     break;
-  case 4:
+  case 3:
     // yellow
     singleColour(255, 255, 0);
     break;
-  case 5:
+  case 4:
     // blue
     singleColour(0, 0, 255);
     break;
-  case 6:
+  case 5:
     // magenta
     singleColour(255, 0, 255);
     break;
-  case 7:
+  case 6:
     // cyan
     singleColour(0, 255, 255);
     break;
-  case 8:
+  case 7:
     // white
     singleColour(255, 255, 255);
     break;
-  case 9:
+  case 8:
     hsvScroll();
     break;
-  case 10:
+  case 9:
     hsvFade();
     break;
-  case 11:
+  case 10:
     christmasRedAndGreen();
     break;
-  case 12:
+  case 11:
     christmasRedAndGreenTwinkle();
     break;
-  case 13:
+  case 12:
     whiteTwinkle();
     break;
-  case 14:
-    redNightLight();
-    break;
-  case 15:
+  case 13:
     christmasWork();
     break;
-  case 16:
+  case 14:
     christmasWorkTwinkle();
     break;
-  case 17:
+  case 15:
     hsvScrollTwinkle();
     break;
-  case 18:
+  case 16:
     hsvStaticTwinkle();
     break;
-  case 19:
+  case 17:
     hsvFadeTwinkle();
     break;
-  case 20:
+  case 18:
     knightRider(false);
     break;
-  case 21:
+  case 19:
     knightRider(true);
     break;
-  case 22:
+  case 20:
     random_single(makeRandom1, 200);
     break;
-  case 23:
+  case 21:
     random_single(makeRandom1, 50);
     break;
-  case 24:
+  case 22:
     random_full(makeRandom1, 500);
     break;
-  case 25:
+  case 23:
     random_full(makeRandom1, 200);
     break;
-  case 26:
+  case 24:
     random_single(makeRandom2, 200);
     break;
-  case 27:
+  case 25:
     random_single(makeRandom2, 50);
     break;
-  case 28:
+  case 26:
     random_full(makeRandom2, 500);
     break;
-  case 29:
+  case 27:
     random_full(makeRandom2, 200);
     break;
   case 255:
@@ -1024,7 +1017,6 @@ void runRootHandler() {
   }
 
   for (i = 0; modeNames[i] != NULL; i++) {
-    if (i == 2 || i == 13) continue;
     form += "<input type=\"submit\" name=\"ledmode_";
     form += i;
     form += "\"";
