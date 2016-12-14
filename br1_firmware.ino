@@ -55,11 +55,16 @@ const char *colourOrderNames[] = { "RGB", "GRB", "BRG", NULL };
 const uint16_t colourOrderValues[] = { NEO_RGB, NEO_GRB, NEO_BRG };
 
 const char *modeNames[255] = { "Black", "Red", "Green", "Yellow", "Blue", "Magenta", "Cyan", "White",
-  "HSV Scroll", "HSV Fade", "Christmas (Red and Green)", "Christmas (Red and Green (Twinkle)", "White (Twinkle)",
-  "Christmas (Work)", "Christmas (Work (Twinkle))", "HSV Scroll (Twinkle)", "HSV Static (Twinkle)",
-  "HSV Fade (Twinkle)", "Knight Rider", "Knight Rider (HSV Fade)", "Single Random 1 (slow)", "Single Random 1 (fast)",
-  "Full Random 1 (slow)", "Full Random 1 (fast)", "Single Random 2 (slow)", "Single Random 2 (fast)",
-  "Full Random 2 (slow)", "Full Random 2 (fast)", NULL };
+  "HSV Scroll (1x, slow)", "HSV Scroll (1x, medium)", "HSV Scroll (1x, fast)",
+  "HSV Scroll (2x, slow)", "HSV Scroll (2x, medium)", "HSV Scroll (2x, fast)",
+  "HSV Fade", "Christmas (Red and Green)", "Christmas (Red and Green (Twinkle)",
+  "White (Twinkle)", "Christmas (Work)", "Christmas (Work (Twinkle))",
+  "HSV Scroll (1x, slow (Twinkle))", "HSV Scroll (1x, medium (Twinkle))", "HSV Scroll (1x, fast (Twinkle))",
+  "HSV Scroll (2x, slow (Twinkle))", "HSV Scroll (2x, medium (Twinkle))", "HSV Scroll (2x, fast (Twinkle))",
+  "HSV Static (Twinkle)", "HSV Fade (Twinkle)", "Knight Rider", "Knight Rider (HSV Fade)",
+  "Single Random 1 (slow)", "Single Random 1 (medium)", "Single Random 1 (fast)", "Full Random 1 (slow)", "Full Random 1 (medium)", "Full Random 1 (fast)",
+  "Single Random 2 (slow)", "Single Random 2 (medium)", "Single Random 2 (fast)", "Full Random 2 (slow)", "Full Random 1 (medium)", "Full Random 2 (fast)",
+  NULL };
 
 struct EepromData {
   uint8_t configured;
@@ -78,6 +83,12 @@ struct EepromData {
   uint8_t scale100red;
   uint8_t scale100green;
   uint8_t scale100blue;
+  uint8_t scale150red;
+  uint8_t scale150green;
+  uint8_t scale150blue;
+  uint8_t scale200red;
+  uint8_t scale200green;
+  uint8_t scale200blue;
 } eepromData;
 
 char myhostname[64];
@@ -93,6 +104,7 @@ uint8_t buttonState = HIGH;
 uint8_t scalered[MAX_PIXELS];
 uint8_t scalegreen[MAX_PIXELS];
 uint8_t scaleblue[MAX_PIXELS];
+uint8_t multiplier;
 
 void configuration_mode();
 void run_mode();
@@ -272,11 +284,27 @@ void makeScale() {
     scaleblue[i] = eepromData.scale50blue;
   }
 
-  for (int i = 100; i < MAX_PIXELS; i++) {
+  for (int i = 100; i < 150; i++) {
     scalered[i] = eepromData.scale100red;
     scalegreen[i] = eepromData.scale100green;
     scaleblue[i] = eepromData.scale100blue;
   }
+
+  for (int i = 150; i < 200; i++) {
+    scalered[i] = eepromData.scale150red;
+    scalegreen[i] = eepromData.scale150green;
+    scaleblue[i] = eepromData.scale150blue;
+  }
+
+  for (int i = 200; i < MAX_PIXELS; i++) {
+    scalered[i] = eepromData.scale200red;
+    scalegreen[i] = eepromData.scale200green;
+    scaleblue[i] = eepromData.scale200blue;
+  }
+
+  multiplier = eepromData.pixelcount / 50;
+  if (multiplier == 0)
+    multiplier = 1;
 }
 
 void singleColour(uint8_t red, uint8_t green, uint8_t blue) {
@@ -427,14 +455,13 @@ void hsvStatic() {
   pixels.Show();
 }
 
-void hsvScroll() {
+void hsvScroll(unsigned int repeat, unsigned long interval) {
   static int hue = 0;
   static unsigned long lastChange = 0;
-  unsigned long interval = 50;
 
   if (millis() - lastChange > interval) {
     for (int i = 0; i < eepromData.pixelcount; i++) {
-      pixels.SetPixelColor(i, ledExpHSV(((i * HUE_EXP_MAX / eepromData.pixelcount) + hue) % HUE_EXP_MAX, 1.0, 1.0, i));
+      pixels.SetPixelColor(i, ledExpHSV(((repeat * i * HUE_EXP_MAX / eepromData.pixelcount) + hue) % HUE_EXP_MAX, 1.0, 1.0, i));
     }
     pixels.Show();
     hue++;
@@ -443,16 +470,19 @@ void hsvScroll() {
   }
 }
 
+
+unsigned int hsv_scroll_repeat;
+unsigned long hsv_scroll_interval;
+
 boolean hsvScrollNoShow() {
   static int hue = 0;
   static unsigned long lastChange = 0;
-  unsigned long interval = 50;
 
   for (int i = 0; i < eepromData.pixelcount; i++) {
-    pixels.SetPixelColor(i, ledExpHSV(((i * HUE_EXP_MAX / eepromData.pixelcount) + hue) % HUE_EXP_MAX, 1.0, 1.0, i));
+    pixels.SetPixelColor(i, ledExpHSV(((multiplier * i * HUE_EXP_MAX / eepromData.pixelcount) + hue) % HUE_EXP_MAX, 1.0, 1.0, i));
   }
 
-  if (millis() - lastChange > interval) {
+  if (millis() - lastChange > hsv_scroll_interval) {
     hue++;
     hue %= HUE_EXP_MAX;
     lastChange = millis();
@@ -465,7 +495,7 @@ static RgbColor christmasRGValues[MAX_PIXELS];
 
 boolean christmasRedAndGreen(boolean show) {
   static unsigned long lastChange = 0;
-  unsigned long interval = show ? 200 : 1000;
+  unsigned long interval = (show ? 200 : 1000) / multiplier;
 
   if (ledModeChanged) {
     // randomise all of the pixels
@@ -561,7 +591,7 @@ void twinkle(boolean (*func)(void), uint8_t low, uint8_t high, uint8_t step, boo
   static unsigned long lastPulse = 0;
   static uint8_t levels[MAX_PIXELS];
   static uint8_t current[MAX_PIXELS];
-  unsigned long pulseInterval = 250;
+  unsigned long pulseInterval = 250 / multiplier;
   unsigned long changeInterval = 10;
   boolean refresh = false;
 
@@ -633,7 +663,9 @@ void whiteTwinkle() {
   twinkle(whiteNoShow, 50, 255, 10, false);
 }
 
-void hsvScrollTwinkle() {
+void hsvScrollTwinkle(unsigned int repeat, unsigned long interval) {
+  hsv_scroll_repeat = repeat;
+  hsv_scroll_interval = interval;
   twinkle(hsvScrollNoShow, 50, 255, 10, true);
 }
 
@@ -649,7 +681,7 @@ static RgbColor christmasWorkValues[MAX_PIXELS];
 
 boolean christmasWork(boolean show) {
   static unsigned long lastChange = 0;
-  unsigned long interval = show ? 200 : 1000;
+  unsigned long interval = (show ? 200 : 1000) / multiplier;
 
   if (ledModeChanged) {
     // randomise all of the pixels
@@ -830,6 +862,8 @@ RgbColor makeRandom2(int pos) {
 void random_single(RgbColor (*makeRandom)(int), unsigned long interval) {
   static unsigned long lastChange = 0;
 
+  interval /= multiplier;
+
   if (ledModeChanged) {
     // randomise all of the pixels
     for (int i = 0; i < eepromData.pixelcount; i++)
@@ -902,63 +936,105 @@ void ledLoop() {
     singleColour(255, 255, 255);
     break;
   case 8:
-    hsvScroll();
+    hsvScroll(1, 50);
     break;
   case 9:
-    hsvFade();
+    hsvScroll(1, 20);
     break;
   case 10:
-    christmasRedAndGreen();
+    hsvScroll(1, 5);
     break;
   case 11:
-    christmasRedAndGreenTwinkle();
+    hsvScroll(2, 50);
     break;
   case 12:
-    whiteTwinkle();
+    hsvScroll(2, 20);
     break;
   case 13:
-    christmasWork();
+    hsvScroll(2, 5);
     break;
   case 14:
-    christmasWorkTwinkle();
+    hsvFade();
     break;
   case 15:
-    hsvScrollTwinkle();
+    christmasRedAndGreen();
     break;
   case 16:
-    hsvStaticTwinkle();
+    christmasRedAndGreenTwinkle();
     break;
   case 17:
-    hsvFadeTwinkle();
+    whiteTwinkle();
     break;
   case 18:
-    knightRider(false);
+    christmasWork();
     break;
   case 19:
-    knightRider(true);
+    christmasWorkTwinkle();
     break;
   case 20:
-    random_single(makeRandom1, 200);
+    hsvScrollTwinkle(1, 50);
     break;
   case 21:
-    random_single(makeRandom1, 50);
+    hsvScrollTwinkle(1, 20);
     break;
   case 22:
-    random_full(makeRandom1, 500);
+    hsvScrollTwinkle(1, 5);
     break;
   case 23:
-    random_full(makeRandom1, 200);
+    hsvScrollTwinkle(2, 50);
     break;
   case 24:
-    random_single(makeRandom2, 200);
+    hsvScrollTwinkle(2, 20);
     break;
   case 25:
-    random_single(makeRandom2, 50);
+    hsvScrollTwinkle(2, 5);
     break;
   case 26:
-    random_full(makeRandom2, 500);
+    hsvStaticTwinkle();
     break;
   case 27:
+    hsvFadeTwinkle();
+    break;
+  case 28:
+    knightRider(false);
+    break;
+  case 29:
+    knightRider(true);
+    break;
+  case 30:
+    random_single(makeRandom1, 200);
+    break;
+  case 31:
+    random_single(makeRandom1, 150);
+    break;
+  case 32:
+    random_single(makeRandom1, 100);
+    break;
+  case 33:
+    random_full(makeRandom1, 1000);
+    break;
+  case 34:
+    random_full(makeRandom1, 500);
+    break;
+  case 35:
+    random_full(makeRandom1, 200);
+    break;
+  case 36:
+    random_single(makeRandom2, 200);
+    break;
+  case 37:
+    random_single(makeRandom2, 150);
+    break;
+  case 38:
+    random_single(makeRandom2, 100);
+    break;
+  case 39:
+    random_full(makeRandom2, 1000);
+    break;
+  case 40:
+    random_full(makeRandom2, 500);
+    break;
+  case 41:
     random_full(makeRandom2, 200);
     break;
   case 255:
@@ -1078,7 +1154,7 @@ void runConfigHandler() {
       "<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"></head>"
       "<form method=\"POST\" action=\"apply2\">";
 
-  form += "Scaling (0-49): "
+  form += "Scaling (0): "
       "R<input type=\"number\" name=\"scale0red\" min=\"0\" max=\"255\" value=\"";
   form += eepromData.scale0red;
   form += "\"/>"
@@ -1089,7 +1165,7 @@ void runConfigHandler() {
   form += eepromData.scale0blue;
   form += "\"/><br/>";
 
-  form += "Scaling (50-99): "
+  form += "Scaling (1): "
       "R<input type=\"number\" name=\"scale50red\" min=\"0\" max=\"255\" value=\"";
   form += eepromData.scale50red;
   form += "\"/>"
@@ -1100,7 +1176,7 @@ void runConfigHandler() {
   form += eepromData.scale50blue;
   form += "\"/><br/>";
 
-  form += "Scaling (100-149): "
+  form += "Scaling (2): "
       "R<input type=\"number\" name=\"scale100red\" min=\"0\" max=\"255\" value=\"";
   form += eepromData.scale100red;
   form += "\"/>"
@@ -1109,6 +1185,28 @@ void runConfigHandler() {
   form += "\"/>"
       "B<input type=\"number\" name=\"scale100blue\" min=\"0\" max=\"255\" value=\"";
   form += eepromData.scale100blue;
+  form += "\"/><br/>";
+
+  form += "Scaling (3): "
+      "R<input type=\"number\" name=\"scale150red\" min=\"0\" max=\"255\" value=\"";
+  form += eepromData.scale150red;
+  form += "\"/>"
+      "G<input type=\"number\" name=\"scale150green\" min=\"0\" max=\"255\" value=\"";
+  form += eepromData.scale150green;
+  form += "\"/>"
+      "B<input type=\"number\" name=\"scale150blue\" min=\"0\" max=\"255\" value=\"";
+  form += eepromData.scale150blue;
+  form += "\"/><br/>";
+
+  form += "Scaling (4): "
+      "R<input type=\"number\" name=\"scale200red\" min=\"0\" max=\"255\" value=\"";
+  form += eepromData.scale200red;
+  form += "\"/>"
+      "G<input type=\"number\" name=\"scale200green\" min=\"0\" max=\"255\" value=\"";
+  form += eepromData.scale200green;
+  form += "\"/>"
+      "B<input type=\"number\" name=\"scale200blue\" min=\"0\" max=\"255\" value=\"";
+  form += eepromData.scale200blue;
   form += "\"/><br/>";
 
   form += "Default Mode: <input type=\"number\" name=\"defaultmode\" min=\"0\" max=\"255\" value=\"";
@@ -1148,6 +1246,24 @@ void runConfigUpdateHandler() {
     if (server.argName(i) == "scale100blue") {
       eepromData.scale100blue = server.arg(i).toInt();
     }
+    if (server.argName(i) == "scale150red") {
+      eepromData.scale150red = server.arg(i).toInt();
+    }
+    if (server.argName(i) == "scale150green") {
+      eepromData.scale150green = server.arg(i).toInt();
+    }
+    if (server.argName(i) == "scale150blue") {
+      eepromData.scale150blue = server.arg(i).toInt();
+    }
+    if (server.argName(i) == "scale200red") {
+      eepromData.scale200red = server.arg(i).toInt();
+    }
+    if (server.argName(i) == "scale200green") {
+      eepromData.scale200green = server.arg(i).toInt();
+    }
+    if (server.argName(i) == "scale200blue") {
+      eepromData.scale200blue = server.arg(i).toInt();
+    }
     if (server.argName(i) == "defaultmode") {
       eepromData.defaultmode = server.arg(i).toInt();
     }
@@ -1173,6 +1289,18 @@ void runConfigUpdateHandler() {
   Serial.println(eepromData.scale100green, DEC);
   Serial.print("scale100blue=");
   Serial.println(eepromData.scale100blue, DEC);
+  Serial.print("scale150red=");
+  Serial.println(eepromData.scale150red, DEC);
+  Serial.print("scale150green=");
+  Serial.println(eepromData.scale150green, DEC);
+  Serial.print("scale150blue=");
+  Serial.println(eepromData.scale150blue, DEC);
+  Serial.print("scale200red=");
+  Serial.println(eepromData.scale200red, DEC);
+  Serial.print("scale200green=");
+  Serial.println(eepromData.scale200green, DEC);
+  Serial.print("scale200blue=");
+  Serial.println(eepromData.scale200blue, DEC);
   Serial.print("defaultmode=");
   Serial.println(eepromData.defaultmode, DEC);
   EEPROM.put(0, eepromData);
@@ -1300,7 +1428,7 @@ void configRootHandler() {
   }
   form += "</select><br/>";
 
-  form += "Scaling (0-49): "
+  form += "Scaling (0): "
       "R<input type=\"number\" name=\"scale0red\" min=\"0\" max=\"255\" value=\"";
   form += (eepromData.configured == 1 ? eepromData.scale0red : 255);
   form += "\"/>"
@@ -1311,7 +1439,7 @@ void configRootHandler() {
   form += (eepromData.configured == 1 ? eepromData.scale0blue : 255);
   form += "\"/><br/>";
 
-  form += "Scaling (50-99): "
+  form += "Scaling (1): "
       "R<input type=\"number\" name=\"scale50red\" min=\"0\" max=\"255\" value=\"";
   form += (eepromData.configured == 1 ? eepromData.scale50red : 255);
   form += "\"/>"
@@ -1322,17 +1450,38 @@ void configRootHandler() {
   form += (eepromData.configured == 1 ? eepromData.scale50blue : 255);
   form += "\"/><br/>";
 
-  form += "Scaling (100-149): "
+  form += "Scaling (2): "
       "R<input type=\"number\" name=\"scale100red\" min=\"0\" max=\"255\" value=\"";
   form += (eepromData.configured == 1 ? eepromData.scale100red : 255);
   form += "\"/>"
-      "G<input type=\"number\" name=\"scalegreen\" min=\"0\" max=\"255\" value=\"";
+      "G<input type=\"number\" name=\"scale100green\" min=\"0\" max=\"255\" value=\"";
   form += (eepromData.configured == 1 ? eepromData.scale100green : 255);
   form += "\"/>"
-      "B<input type=\"number\" name=\"scaleblue\" min=\"0\" max=\"255\" value=\"";
+      "B<input type=\"number\" name=\"scale100blue\" min=\"0\" max=\"255\" value=\"";
   form += (eepromData.configured == 1 ? eepromData.scale100blue : 255);
   form += "\"/><br/>";
 
+  form += "Scaling (3): "
+      "R<input type=\"number\" name=\"scale150red\" min=\"0\" max=\"255\" value=\"";
+  form += (eepromData.configured == 1 ? eepromData.scale150red : 255);
+  form += "\"/>"
+      "G<input type=\"number\" name=\"scale150green\" min=\"0\" max=\"255\" value=\"";
+  form += (eepromData.configured == 1 ? eepromData.scale150green : 255);
+  form += "\"/>"
+      "B<input type=\"number\" name=\"scale150blue\" min=\"0\" max=\"255\" value=\"";
+  form += (eepromData.configured == 1 ? eepromData.scale150blue : 255);
+  form += "\"/><br/>";
+  
+  form += "Scaling (4): "
+      "R<input type=\"number\" name=\"scale200red\" min=\"0\" max=\"255\" value=\"";
+  form += (eepromData.configured == 1 ? eepromData.scale200red : 255);
+  form += "\"/>"
+      "G<input type=\"number\" name=\"scale200green\" min=\"0\" max=\"255\" value=\"";
+  form += (eepromData.configured == 1 ? eepromData.scale200green : 255);
+  form += "\"/>"
+      "B<input type=\"number\" name=\"scale200blue\" min=\"0\" max=\"255\" value=\"";
+  form += (eepromData.configured == 1 ? eepromData.scale200blue : 255);
+  form += "\"/><br/>";
   form += "Default Mode: <input type=\"number\" name=\"defaultmode\" min=\"0\" max=\"255\" value=\"";
   if (eepromData.configured == 1) {
     form += eepromData.defaultmode;
@@ -1386,6 +1535,24 @@ void configUpdateHandler() {
     }
     if (server.argName(i) == "scale100blue") {
       eepromData.scale100blue = server.arg(i).toInt();
+    }
+    if (server.argName(i) == "scale150red") {
+      eepromData.scale150red = server.arg(i).toInt();
+    }
+    if (server.argName(i) == "scale150green") {
+      eepromData.scale150green = server.arg(i).toInt();
+    }
+    if (server.argName(i) == "scale150blue") {
+      eepromData.scale150blue = server.arg(i).toInt();
+    }
+    if (server.argName(i) == "scale200red") {
+      eepromData.scale200red = server.arg(i).toInt();
+    }
+    if (server.argName(i) == "scale200green") {
+      eepromData.scale200green = server.arg(i).toInt();
+    }
+    if (server.argName(i) == "scale200blue") {
+      eepromData.scale200blue = server.arg(i).toInt();
     }
     if (server.argName(i) == "defaultmode") {
       eepromData.defaultmode = server.arg(i).toInt();
@@ -1465,6 +1632,18 @@ void configuration_mode() {
   Serial.println(eepromData.scale100green);
   Serial.print("scale100blue=");
   Serial.println(eepromData.scale100blue);
+  Serial.print("scale150red=");
+  Serial.println(eepromData.scale150red);
+  Serial.print("scale150green=");
+  Serial.println(eepromData.scale150green);
+  Serial.print("scale150blue=");
+  Serial.println(eepromData.scale150blue);
+  Serial.print("scale200red=");
+  Serial.println(eepromData.scale200red);
+  Serial.print("scale200green=");
+  Serial.println(eepromData.scale200green);
+  Serial.print("scale200blue=");
+  Serial.println(eepromData.scale200blue);
   Serial.print("defaultmode=");
   Serial.println(eepromData.defaultmode);
   Serial.print("wifimode=");
