@@ -856,12 +856,14 @@ void knightRider(boolean hsvFade) {
 
 void burst(unsigned int bursts, unsigned int colours) {
   static unsigned long lastChange = 0;
-  static int pos[MAX_BURSTS] = { -1 };
+  static int pos[MAX_BURSTS] = { 0 };
   static int hue[MAX_BURSTS] = { 0 };
-  unsigned long interval = 600 / eepromData.pixelcount;
+  static bool active[MAX_BURSTS] = { false };
+  const unsigned long interval = 600 / eepromData.pixelcount;
   const float fadeRate = 0.75f;
   int pActive = eepromData.pixelcount / (bursts + 2) / 3;
   int pFade = eepromData.pixelcount / (bursts + 2) / 6;
+  int pSide;
 
   boolean change = false;
   boolean refresh = false;
@@ -873,13 +875,16 @@ void burst(unsigned int bursts, unsigned int colours) {
     pActive = 1;
   if (pFade < 1)
     pFade = 1;
+  pSide = pActive + pFade;
 
   if (ledModeChanged) {
-    pos[0] = 0;
-    for (int i = 1; i < bursts; i++)
-      pos[i] = -1;
+    for (int i = 0; i < bursts; i++) {
+      active[i] = false;
+      pos[i] = 0;
+    }
     lastChange = millis() - interval - 1;
 
+    active[0] = true;
     hue[0] = 0;
     for (int i = 1; i < bursts; i++)
       hue[i] = (hue[i - 1] + (HUE_EXP_MAX / colours)) % HUE_EXP_MAX;
@@ -900,7 +905,7 @@ void burst(unsigned int bursts, unsigned int colours) {
         RgbColor base = ledExpHSV(hue[burst], 1.0, 1.0, i);
         HsbColor tmp = HsbColor(base);
 
-        if (pos[burst] == -1) {
+        if (!active[burst]) {
           continue;
         } else if (i >= pos[burst] - pActive && i <= pos[burst] + pActive) {
           // full brightness
@@ -930,15 +935,16 @@ void burst(unsigned int bursts, unsigned int colours) {
 
   if (change) {
     for (int i = 0; i < bursts; i++) {
-      if (pos[i] != -1) {
-        if (pos[i] >= eepromData.pixelcount) {
-          pos[i] = 0;
+      if (active[i]) {
+        if (pos[i] >= eepromData.pixelcount + pSide) {
+          pos[i] = 0 - pSide;
           hue[i] = (hue[i] + (HUE_EXP_MAX / colours) * bursts) % HUE_EXP_MAX;
         } else {
           pos[i]++;
         }
-      } else if (i > 0 && pos[i - 1] != -1 && pos[i - 1] >= (eepromData.pixelcount / bursts)) {
-        pos[i] = 0;
+      } else if (i > 0 && active[i - 1] && pos[i - 1] >= (eepromData.pixelcount / bursts) - pSide) {
+        pos[i] = 0 - pSide;
+        active[i] = true;
       }
     }
     lastChange = millis();
