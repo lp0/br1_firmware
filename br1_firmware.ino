@@ -859,11 +859,9 @@ void burst(unsigned int bursts, unsigned int colours) {
   static int pos[MAX_BURSTS] = { -1 };
   static int hue[MAX_BURSTS] = { 0 };
   unsigned long interval = 600 / eepromData.pixelcount;
-  const uint8_t active = 12; // percentage fully bright
-  const uint8_t fade = 16; // percentage to fade off at each end
   const float fadeRate = 0.75f;
-  int pActive = eepromData.pixelcount * active / 100 / 2;
-  int pFade = eepromData.pixelcount * fade / 100;
+  int pActive = eepromData.pixelcount / (bursts + 2) / 3;
+  int pFade = eepromData.pixelcount / (bursts + 2) / 6;
 
   boolean change = false;
   boolean refresh = false;
