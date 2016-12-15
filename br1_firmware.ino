@@ -44,6 +44,8 @@ extern "C" {
 #define HUE_EXP_TIMES 2
 #define HUE_EXP_MAX ((HUE_MAX - HUE_EXP_RANGE) + (HUE_EXP_TIMES * HUE_EXP_RANGE))
 
+#define MAX_BURSTS 5
+
 const uint8_t irPin = 14;
 const uint8_t buttonPin = 13;
 const uint8_t dataPin = 2;
@@ -63,7 +65,12 @@ const char *modeNames[255] = { "Black", "Red", "Green", "Yellow", "Blue", "Magen
   "HSV Scroll (2x, slow (Twinkle))", "HSV Scroll (2x, medium (Twinkle))", "HSV Scroll (2x, fast (Twinkle))",
   "HSV Static (Twinkle)", "HSV Fade (Twinkle)", "Knight Rider", "Knight Rider (HSV Fade)",
   "Single Random 1 (slow)", "Single Random 1 (medium)", "Single Random 1 (fast)", "Full Random 1 (slow)", "Full Random 1 (medium)", "Full Random 1 (fast)",
-  "Single Random 2 (slow)", "Single Random 2 (medium)", "Single Random 2 (fast)", "Full Random 2 (slow)", "Full Random 1 (medium)", "Full Random 2 (fast)",
+  "Single Random 2 (slow)", "Single Random 2 (medium)", "Single Random 2 (fast)", "Full Random 2 (slow)", "Full Random 2 (medium)", "Full Random 2 (fast)",
+  "Burst  (1x, 7 colours)", "Burst  (1x, 10 colours)", "Burst  (1x, 14 colours)",
+  "Burst  (2x, 7 colours)", "Burst  (2x, 10 colours)", "Burst  (2x, 14 colours)",
+  "Burst  (3x, 7 colours)", "Burst  (3x, 10 colours)", "Burst  (3x, 14 colours)",
+  "Burst  (4x, 7 colours)", "Burst  (4x, 10 colours)", "Burst  (4x, 14 colours)",
+  "Burst  (5x, 7 colours)", "Burst  (5x, 10 colours)", "Burst  (5x, 14 colours)",
   NULL };
 
 struct EepromData {
@@ -847,6 +854,99 @@ void knightRider(boolean hsvFade) {
   }
 }
 
+void burst(unsigned int bursts, unsigned int colours) {
+  static unsigned long lastChange = 0;
+  static int pos[MAX_BURSTS] = { -1 };
+  static int hue[MAX_BURSTS] = { 0 };
+  unsigned long interval = 600 / eepromData.pixelcount;
+  const uint8_t active = 12; // percentage fully bright
+  const uint8_t fade = 16; // percentage to fade off at each end
+  const float fadeRate = 0.75f;
+  int pActive = eepromData.pixelcount * active / 100 / 2;
+  int pFade = eepromData.pixelcount * fade / 100;
+
+  boolean change = false;
+  boolean refresh = false;
+
+  if (bursts > MAX_BURSTS)
+    return;
+
+  if (pActive < 1)
+    pActive = 1;
+  if (pFade < 1)
+    pFade = 1;
+
+  if (ledModeChanged) {
+    pos[0] = 0;
+    for (int i = 1; i < bursts; i++)
+      pos[i] = -1;
+    lastChange = millis() - interval - 1;
+
+    hue[0] = 0;
+    for (int i = 1; i < bursts; i++)
+      hue[i] = (hue[i - 1] + (HUE_EXP_MAX / colours)) % HUE_EXP_MAX;
+
+    ledModeChanged = false;
+  }
+
+  if (millis() - lastChange > interval) {
+    change = true;
+    refresh = true;
+  }
+
+  if (refresh) {
+    for (int i = 0; i < eepromData.pixelcount; i++) {
+      HsbColor set = HsbColor(RgbColor(0, 0, 0));
+
+      for (int burst = 0; burst < bursts; burst++) {
+        RgbColor base = ledExpHSV(hue[burst], 1.0, 1.0, i);
+        HsbColor tmp = HsbColor(base);
+
+        if (pos[burst] == -1) {
+          continue;
+        } else if (i >= pos[burst] - pActive && i <= pos[burst] + pActive) {
+          // full brightness
+        } else if (i >= pos[burst] - pActive - pFade && i <= pos[burst] + pActive + pFade) {
+          if (i < pos[burst]) {
+            tmp.B *= 0.5f;
+            for (int j = ((pos[burst] - pActive) - i); j > 0; j--)
+              tmp.B *= fadeRate;
+          } else {
+            tmp.B *= 0.5f;
+            for (int j = (i - (pos[burst] + pActive)); j > 0; j--)
+              tmp.B *= fadeRate;
+          }
+        } else {
+          continue;
+        }
+
+        set = tmp;
+        break;
+      }
+
+      pixels.SetPixelColor(i, set);
+    }
+
+    pixels.Show();
+  }
+
+  if (change) {
+    for (int i = 0; i < bursts; i++) {
+      if (pos[i] != -1) {
+        if (pos[i] >= eepromData.pixelcount) {
+          pos[i] = 0;
+          hue[i] = (hue[i] + (HUE_EXP_MAX / colours)) % HUE_EXP_MAX;
+        } else {
+          pos[i]++;
+        }
+      } else if (i > 0 && pos[i - 1] != -1 && pos[i - 1] >= (eepromData.pixelcount / bursts)) {
+        pos[i] = 0;
+      }
+    }
+    lastChange = millis();
+  }
+}
+
 RgbColor makeRandom1(int pos) {
   RgbColor tmp = RgbColor(HslColor(random(0, 256) / 255.0f, random(128, 256) / 255.0f, random(64, 128) / 255.0f));
   tmp.R = tmp.R * scalered[pos] / 255;
@@ -1036,6 +1136,51 @@ void ledLoop() {
     break;
   case 41:
     random_full(makeRandom2, 200);
+    break;
+  case 42:
+    burst(1, 7);
+    break;
+  case 43:
+    burst(1, 10);
+    break;
+  case 44:
+    burst(1, 14);
+    break;
+  case 45:
+    burst(2, 7);
+    break;
+  case 46:
+    burst(2, 10);
+    break;
+  case 47:
+    burst(2, 14);
+    break;
+  case 48:
+    burst(3, 7);
+    break;
+  case 49:
+    burst(3, 10);
+    break;
+  case 50:
+    burst(3, 14);
+    break;
+  case 51:
+    burst(4, 7);
+    break;
+  case 52:
+    burst(4, 10);
+    break;
+  case 53:
+    burst(4, 14);
+    break;
+  case 54:
+    burst(5, 7);
+    break;
+  case 55:
+    burst(5, 10);
+    break;
+  case 56:
+    burst(5, 14);
     break;
   case 255:
     // network mode - no action
