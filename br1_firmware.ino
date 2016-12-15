@@ -1201,7 +1201,7 @@ void runRootHandler() {
 
   String form;
 
-  form.reserve(2560);
+  form.reserve(3072);
   form += "<!DOCTYPE html>"
       "<html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
       "<style type=\"text/css\">"
@@ -1298,7 +1298,7 @@ void runUpdateHandler() {
 void runConfigHandler() {
   String form;
 
-  form.reserve(1024);
+  form.reserve(3072);
   form += "<!DOCTYPE html>"
       "<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"></head>"
       "<form method=\"POST\" action=\"apply2\">";
