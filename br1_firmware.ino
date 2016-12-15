@@ -935,7 +935,7 @@ void burst(unsigned int bursts, unsigned int colours) {
       if (pos[i] != -1) {
         if (pos[i] >= eepromData.pixelcount) {
           pos[i] = 0;
-          hue[i] = (hue[i] + (HUE_EXP_MAX / colours)) % HUE_EXP_MAX;
+          hue[i] = (hue[i] + (HUE_EXP_MAX / colours) * bursts) % HUE_EXP_MAX;
         } else {
           pos[i]++;
         }
