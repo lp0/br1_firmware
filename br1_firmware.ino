@@ -942,7 +942,7 @@ void burst(unsigned int bursts, unsigned int colours) {
         } else {
           pos[i]++;
         }
-      } else if (i > 0 && active[i - 1] && pos[i - 1] >= (eepromData.pixelcount / bursts) - pSide) {
+      } else if (i > 0 && active[i - 1] && pos[i - 1] >= (int)((eepromData.pixelcount / bursts) - pSide)) {
         pos[i] = 0 - pSide;
         active[i] = true;
       }
