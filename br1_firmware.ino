@@ -66,11 +66,11 @@ const char *modeNames[255] = { "Black", "Red", "Green", "Yellow", "Blue", "Magen
   "HSV Static (Twinkle)", "HSV Fade (Twinkle)", "Knight Rider", "Knight Rider (HSV Fade)",
   "Single Random 1 (slow)", "Single Random 1 (medium)", "Single Random 1 (fast)", "Full Random 1 (slow)", "Full Random 1 (medium)", "Full Random 1 (fast)",
   "Single Random 2 (slow)", "Single Random 2 (medium)", "Single Random 2 (fast)", "Full Random 2 (slow)", "Full Random 2 (medium)", "Full Random 2 (fast)",
-  "Burst  (1x, 7 colours)", "Burst  (1x, 10 colours)", "Burst  (1x, 14 colours)",
-  "Burst  (2x, 7 colours)", "Burst  (2x, 10 colours)", "Burst  (2x, 14 colours)",
-  "Burst  (3x, 7 colours)", "Burst  (3x, 10 colours)", "Burst  (3x, 14 colours)",
-  "Burst  (4x, 7 colours)", "Burst  (4x, 10 colours)", "Burst  (4x, 14 colours)",
-  "Burst  (5x, 7 colours)", "Burst  (5x, 10 colours)", "Burst  (5x, 14 colours)",
+  "Burst  (1x, 7 colours)", "Burst  (1x, 10 colours)", "Burst  (1x, 14 colours)", "Burst  (1x, 20 colours)",
+  "Burst  (2x, 7 colours)", "Burst  (2x, 10 colours)", "Burst  (2x, 14 colours)", "Burst  (2x, 20 colours)",
+  "Burst  (3x, 7 colours)", "Burst  (3x, 10 colours)", "Burst  (3x, 14 colours)", "Burst  (3x, 20 colours)",
+  "Burst  (4x, 7 colours)", "Burst  (4x, 10 colours)", "Burst  (4x, 14 colours)", "Burst  (4x, 20 colours)",
+  "Burst  (5x, 7 colours)", "Burst  (5x, 10 colours)", "Burst  (5x, 14 colours)", "Burst  (5x, 20 colours)",
   NULL };
 
 struct EepromData {
@@ -1151,40 +1151,55 @@ void ledLoop() {
     burst(1, 14);
     break;
   case 45:
-    burst(2, 7);
+    burst(1, 20);
     break;
   case 46:
-    burst(2, 10);
+    burst(2, 7);
     break;
   case 47:
-    burst(2, 14);
+    burst(2, 10);
     break;
   case 48:
-    burst(3, 7);
+    burst(2, 14);
     break;
   case 49:
-    burst(3, 10);
+    burst(2, 20);
     break;
   case 50:
-    burst(3, 14);
+    burst(3, 7);
     break;
   case 51:
-    burst(4, 7);
+    burst(3, 10);
     break;
   case 52:
-    burst(4, 10);
+    burst(3, 14);
     break;
   case 53:
-    burst(4, 14);
+    burst(3, 20);
     break;
   case 54:
-    burst(5, 7);
+    burst(4, 7);
     break;
   case 55:
-    burst(5, 10);
+    burst(4, 10);
     break;
   case 56:
+    burst(4, 14);
+    break;
+  case 57:
+    burst(4, 20);
+    break;
+  case 58:
+    burst(5, 7);
+    break;
+  case 59:
+    burst(5, 10);
+    break;
+  case 60:
     burst(5, 14);
+    break;
+  case 61:
+    burst(5, 20);
     break;
   case 255:
     // network mode - no action
