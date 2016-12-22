@@ -653,9 +653,12 @@ void twinkle(boolean (*func)(void), uint8_t low, uint8_t high, uint8_t step, boo
   }
 
   if (millis() - lastPulse > pulseInterval) {
-    int target = random(0, eepromData.pixelcount);
-    if (current[target] == 0 && levels[target] == (invert ? high : low)) {
-      current[target] = 1;
+    for (int i = 0; i < 10; i++) {
+      int target = random(0, eepromData.pixelcount);
+      if (current[target] == 0 && levels[target] == (invert ? high : low)) {
+        current[target] = 1;
+        break;
+      }
     }
     lastPulse = millis();
   }
