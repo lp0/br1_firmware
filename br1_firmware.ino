@@ -209,15 +209,60 @@ void udpMessageHandler(int len) {
     uint8_t red, green, blue;
     uint16_t pos = 1;
     uint16_t pixel = 0;
-    while ((pos + 2) < len) {
+    while ((pos + 2) < len && pixel < MAX_PIXELS) {
       red = inboundMessage[pos];
       green = inboundMessage[pos + 1];
       blue = inboundMessage[pos + 2];
-      pixels.SetPixelColor(pixel, RgbColor(red, green, blue));
+      pixels.SetPixelColor(pixel, RgbColor(red * scalered[pixel] / 255,
+                                           green * scalegreen[pixel] / 255,
+                                           blue * scaleblue[pixel] / 255));
       pixel++;
       pos += 3;
     }
     pixels.Show();
+    ledMode = 255;
+    break;
+  }
+  case 0x04: {
+    // sequence starting at pixel x: x(msb), x(lsb), r, g, b, r, g, b, ...
+    // then transmit pixels to the wire
+    uint8_t red, green, blue;
+    uint16_t pixel = (inboundMessage[1] << 8) + inboundMessage[2];
+    uint16_t pos = 3;
+    //Serial.print("0x04 writing from pixel ");
+    //Serial.println(pixel, DEC);
+    while ((pos + 2) < len && pixel < MAX_PIXELS) {
+      red = inboundMessage[pos];
+      green = inboundMessage[pos + 1];
+      blue = inboundMessage[pos + 2];
+      pixels.SetPixelColor(pixel, RgbColor(red * scalered[pixel] / 255,
+                                           green * scalegreen[pixel] / 255,
+                                           blue * scaleblue[pixel] / 255));
+      pixel++;
+      pos += 3;
+    }
+    pixels.Show();
+    ledMode = 255;
+    break;
+  }
+  case 0x05: {
+    // sequence starting at pixel x: x(msb), x(lsb), r, g, b, r, g, b, ...
+    // only update the buffer, don't transmit the pixels to the wire
+    uint8_t red, green, blue;
+    uint16_t pixel = (inboundMessage[1] << 8) + inboundMessage[2];
+    uint16_t pos = 3;
+    //Serial.print("0x05 writing from pixel ");
+    //Serial.println(pixel, DEC);
+    while ((pos + 2) < len && pixel < MAX_PIXELS) {
+      red = inboundMessage[pos];
+      green = inboundMessage[pos + 1];
+      blue = inboundMessage[pos + 2];
+      pixels.SetPixelColor(pixel, RgbColor(red * scalered[pixel] / 255,
+                                           green * scalegreen[pixel] / 255,
+                                           blue * scaleblue[pixel] / 255));
+      pixel++;
+      pos += 3;
+    }
     ledMode = 255;
     break;
   }
