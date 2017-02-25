@@ -1424,7 +1424,7 @@ void runUpdateHandler() {
 void runConfigHandler() {
   String form;
 
-  form.reserve(3072);
+  form.reserve(1024);
   form += "<!DOCTYPE html>"
       "<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"></head>"
       "<form method=\"POST\" action=\"apply2\">";
@@ -1542,7 +1542,7 @@ void run_mode() {
     pixels.Begin();
 
     Udp.begin(udpPort);
-    server.on("/", runRootHandler);
+    server.on("/", runUptimeHandler);
     server.on("/apply", runUpdateHandler);
     server.on("/config", runConfigHandler);
     server.on("/apply2", runConfigUpdateHandler);
