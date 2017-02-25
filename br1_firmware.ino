@@ -37,7 +37,7 @@ extern "C" {
 #define DEBUG_PRINTLN(x)
 #endif
 
-#define MAX_PIXELS 250
+#define MAX_PIXELS 1000
 
 #define HUE_MAX 360
 #define HUE_EXP_RANGE 60
@@ -85,33 +85,6 @@ struct EepromData {
   uint8_t scale0blue;
   uint8_t defaultmode;
   uint8_t wifimode;
-  uint8_t scale50red;
-  uint8_t scale50green;
-  uint8_t scale50blue;
-  uint8_t scale100red;
-  uint8_t scale100green;
-  uint8_t scale100blue;
-  uint8_t scale150red;
-  uint8_t scale150green;
-  uint8_t scale150blue;
-  uint8_t scale200red;
-  uint8_t scale200green;
-  uint8_t scale200blue;
-  uint8_t scale0red2;
-  uint8_t scale0green2;
-  uint8_t scale0blue2;
-  uint8_t scale50red2;
-  uint8_t scale50green2;
-  uint8_t scale50blue2;
-  uint8_t scale100red2;
-  uint8_t scale100green2;
-  uint8_t scale100blue2;
-  uint8_t scale150red2;
-  uint8_t scale150green2;
-  uint8_t scale150blue2;
-  uint8_t scale200red2;
-  uint8_t scale200green2;
-  uint8_t scale200blue2;
 } eepromData;
 
 char myhostname[64];
@@ -127,9 +100,6 @@ uint8_t buttonState = HIGH;
 uint8_t scalered[MAX_PIXELS];
 uint8_t scalegreen[MAX_PIXELS];
 uint8_t scaleblue[MAX_PIXELS];
-uint8_t scalered2[MAX_PIXELS];
-uint8_t scalegreen2[MAX_PIXELS];
-uint8_t scaleblue2[MAX_PIXELS];
 uint8_t multiplier;
 
 void configuration_mode();
@@ -298,54 +268,10 @@ void tcpLoop() {
 }
 
 void makeScale() {
-  for (int i = 0; i < 50; i++) {
+  for (int i = 0; i < MAX_PIXELS; i++) {
     scalered[i] = eepromData.scale0red;
     scalegreen[i] = eepromData.scale0green;
     scaleblue[i] = eepromData.scale0blue;
-
-    scalered2[i] = eepromData.scale0red2;
-    scalegreen2[i] = eepromData.scale0green2;
-    scaleblue2[i] = eepromData.scale0blue2;
-  }
-
-  for (int i = 50; i < 100; i++) {
-    scalered[i] = eepromData.scale50red;
-    scalegreen[i] = eepromData.scale50green;
-    scaleblue[i] = eepromData.scale50blue;
-
-    scalered2[i] = eepromData.scale50red2;
-    scalegreen2[i] = eepromData.scale50green2;
-    scaleblue2[i] = eepromData.scale50blue2;
-  }
-
-  for (int i = 100; i < 150; i++) {
-    scalered[i] = eepromData.scale100red;
-    scalegreen[i] = eepromData.scale100green;
-    scaleblue[i] = eepromData.scale100blue;
-
-    scalered2[i] = eepromData.scale100red2;
-    scalegreen2[i] = eepromData.scale100green2;
-    scaleblue2[i] = eepromData.scale100blue2;
-  }
-
-  for (int i = 150; i < 200; i++) {
-    scalered[i] = eepromData.scale150red;
-    scalegreen[i] = eepromData.scale150green;
-    scaleblue[i] = eepromData.scale150blue;
-
-    scalered2[i] = eepromData.scale150red2;
-    scalegreen2[i] = eepromData.scale150green2;
-    scaleblue2[i] = eepromData.scale150blue2;
-  }
-
-  for (int i = 200; i < MAX_PIXELS; i++) {
-    scalered[i] = eepromData.scale200red;
-    scalegreen[i] = eepromData.scale200green;
-    scaleblue[i] = eepromData.scale200blue;
-
-    scalered2[i] = eepromData.scale200red2;
-    scalegreen2[i] = eepromData.scale200green2;
-    scaleblue2[i] = eepromData.scale200blue2;
   }
 
   multiplier = eepromData.pixelcount / 50;
@@ -444,9 +370,9 @@ RgbColor ledHSV(int h, double s, double v, int pos, bool hdr) {
   int blue = constrain((int)255 * b, 0, 255);
 
   if (hdr) {
-    return RgbColor(red * scalered2[pos] / 255,
-                        green * scalegreen2[pos] / 255,
-                        blue * scaleblue2[pos] / 255);
+    return RgbColor(red * scalered[pos] / 255,
+                        green * scalegreen[pos] / 255,
+                        blue * scaleblue[pos] / 255);
   } else {
     return RgbColor(red * scalered[pos] / 255,
                         green * scalegreen[pos] / 255,
@@ -711,9 +637,9 @@ void christmasRedAndGreenTwinkle() {
 
 boolean whiteNoShow() {
   for (int i = 0; i < eepromData.pixelcount; i++) {
-    pixels.SetPixelColor(i, RgbColor(scalered2[i],
-                                         scalegreen2[i],
-                                         scaleblue2[i]));
+    pixels.SetPixelColor(i, RgbColor(scalered[i],
+                                         scalegreen[i],
+                                         scaleblue[i]));
   }
   return false;
 }
@@ -745,10 +671,10 @@ boolean christmasWork(boolean show) {
   if (ledModeChanged) {
     // randomise all of the pixels
     for (int i = 0; i < eepromData.pixelcount; i++) {
-      const RgbColor grey = RgbColor(74 * scalered2[i] / 255, 79 * scalegreen2[i] / 255, 85 * scaleblue2[i] / 255);
-      const RgbColor red = RgbColor(194 * scalered2[i] / 255, 4 * scalegreen2[i] / 255, 24 * scaleblue2[i] / 255);
-      const RgbColor lightBlue = RgbColor(0, 195 * scalegreen2[i] / 255, 215 * scaleblue2[i] / 255);
-      const RgbColor darkBlue = RgbColor(0, 51 * scalegreen2[i] / 255, 161 * scaleblue2[i] / 255);
+      const RgbColor grey = RgbColor(74 * scalered[i] / 255, 79 * scalegreen[i] / 255, 85 * scaleblue[i] / 255);
+      const RgbColor red = RgbColor(194 * scalered[i] / 255, 4 * scalegreen[i] / 255, 24 * scaleblue[i] / 255);
+      const RgbColor lightBlue = RgbColor(0, 195 * scalegreen[i] / 255, 215 * scaleblue[i] / 255);
+      const RgbColor darkBlue = RgbColor(0, 51 * scalegreen[i] / 255, 161 * scaleblue[i] / 255);
       const RgbColor colours[4] = { grey, red, lightBlue, darkBlue };
       const int num_colours = sizeof(colours)/sizeof(RgbColor);
 
@@ -764,10 +690,10 @@ boolean christmasWork(boolean show) {
 
   if (millis() - lastChange > interval) {
     int i = random(0, eepromData.pixelcount);
-    const RgbColor grey = RgbColor(74 * scalered2[i] / 255, 79 * scalegreen2[i] / 255, 85 * scaleblue2[i] / 255);
-    const RgbColor red = RgbColor(194 * scalered2[i] / 255, 4 * scalegreen2[i] / 255, 24 * scaleblue2[i] / 255);
-    const RgbColor lightBlue = RgbColor(0, 195 * scalegreen2[i] / 255, 215 * scaleblue2[i] / 255);
-    const RgbColor darkBlue = RgbColor(0, 51 * scalegreen2[i] / 255, 161 * scaleblue2[i] / 255);
+    const RgbColor grey = RgbColor(74 * scalered[i] / 255, 79 * scalegreen[i] / 255, 85 * scaleblue[i] / 255);
+    const RgbColor red = RgbColor(194 * scalered[i] / 255, 4 * scalegreen[i] / 255, 24 * scaleblue[i] / 255);
+    const RgbColor lightBlue = RgbColor(0, 195 * scalegreen[i] / 255, 215 * scaleblue[i] / 255);
+    const RgbColor darkBlue = RgbColor(0, 51 * scalegreen[i] / 255, 161 * scaleblue[i] / 255);
     const RgbColor colours[4] = { grey, red, lightBlue, darkBlue };
     const int num_colours = sizeof(colours)/sizeof(RgbColor);
     int n = random(1, num_colours);
@@ -1018,9 +944,9 @@ void burst(unsigned int bursts, unsigned int colours) {
 
 RgbColor makeRandom1(int pos) {
   RgbColor tmp = RgbColor(HslColor(random(0, 256) / 255.0f, random(128, 256) / 255.0f, random(64, 128) / 255.0f));
-  tmp.R = tmp.R * scalered2[pos] / 255;
-  tmp.G = tmp.G * scalegreen2[pos] / 255;
-  tmp.B = tmp.B * scaleblue2[pos] / 255;
+  tmp.R = tmp.R * scalered[pos] / 255;
+  tmp.G = tmp.G * scalegreen[pos] / 255;
+  tmp.B = tmp.B * scaleblue[pos] / 255;
   return tmp;
 }
 
@@ -1458,8 +1384,7 @@ void runConfigHandler() {
       "<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"></head>"
       "<form method=\"POST\" action=\"apply2\">";
 
-  form += "<u>Normal Modes</u><br/>";
-  form += "Scaling (1): "
+  form += "Scaling: "
       "R<input type=\"number\" name=\"s0r\" min=\"0\" max=\"255\" value=\"";
   form += eepromData.scale0red;
   form += "\"/>"
@@ -1468,106 +1393,6 @@ void runConfigHandler() {
   form += "\"/>"
       "B<input type=\"number\" name=\"s0b\" min=\"0\" max=\"255\" value=\"";
   form += eepromData.scale0blue;
-  form += "\"/><br/>";
-
-  form += "Scaling (2): "
-      "R<input type=\"number\" name=\"s50r\" min=\"0\" max=\"255\" value=\"";
-  form += eepromData.scale50red;
-  form += "\"/>"
-      "G<input type=\"number\" name=\"s50g\" min=\"0\" max=\"255\" value=\"";
-  form += eepromData.scale50green;
-  form += "\"/>"
-      "B<input type=\"number\" name=\"s50b\" min=\"0\" max=\"255\" value=\"";
-  form += eepromData.scale50blue;
-  form += "\"/><br/>";
-
-  form += "Scaling (3): "
-      "R<input type=\"number\" name=\"s100r\" min=\"0\" max=\"255\" value=\"";
-  form += eepromData.scale100red;
-  form += "\"/>"
-      "G<input type=\"number\" name=\"s100g\" min=\"0\" max=\"255\" value=\"";
-  form += eepromData.scale100green;
-  form += "\"/>"
-      "B<input type=\"number\" name=\"s100b\" min=\"0\" max=\"255\" value=\"";
-  form += eepromData.scale100blue;
-  form += "\"/><br/>";
-
-  form += "Scaling (4): "
-      "R<input type=\"number\" name=\"s150r\" min=\"0\" max=\"255\" value=\"";
-  form += eepromData.scale150red;
-  form += "\"/>"
-      "G<input type=\"number\" name=\"s150g\" min=\"0\" max=\"255\" value=\"";
-  form += eepromData.scale150green;
-  form += "\"/>"
-      "B<input type=\"number\" name=\"s150b\" min=\"0\" max=\"255\" value=\"";
-  form += eepromData.scale150blue;
-  form += "\"/><br/>";
-
-  form += "Scaling (5): "
-      "R<input type=\"number\" name=\"s200r\" min=\"0\" max=\"255\" value=\"";
-  form += eepromData.scale200red;
-  form += "\"/>"
-      "G<input type=\"number\" name=\"s200g\" min=\"0\" max=\"255\" value=\"";
-  form += eepromData.scale200green;
-  form += "\"/>"
-      "B<input type=\"number\" name=\"s200b\" min=\"0\" max=\"255\" value=\"";
-  form += eepromData.scale200blue;
-  form += "\"/><br/>";
-
-  form += "<u>HDR Modes</u><br/>";
-  form += "Scaling (1): "
-      "R<input type=\"number\" name=\"s0r2\" min=\"0\" max=\"255\" value=\"";
-  form += eepromData.scale0red2;
-  form += "\"/>"
-      "G<input type=\"number\" name=\"s0g2\" min=\"0\" max=\"255\" value=\"";
-  form += eepromData.scale0green2;
-  form += "\"/>"
-      "B<input type=\"number\" name=\"s0b2\" min=\"0\" max=\"255\" value=\"";
-  form += eepromData.scale0blue2;
-  form += "\"/><br/>";
-
-  form += "Scaling (2): "
-      "R<input type=\"number\" name=\"s50r2\" min=\"0\" max=\"255\" value=\"";
-  form += eepromData.scale50red2;
-  form += "\"/>"
-      "G<input type=\"number\" name=\"s50g2\" min=\"0\" max=\"255\" value=\"";
-  form += eepromData.scale50green2;
-  form += "\"/>"
-      "B<input type=\"number\" name=\"s50b2\" min=\"0\" max=\"255\" value=\"";
-  form += eepromData.scale50blue2;
-  form += "\"/><br/>";
-
-  form += "Scaling (3): "
-      "R<input type=\"number\" name=\"s100r2\" min=\"0\" max=\"255\" value=\"";
-  form += eepromData.scale100red2;
-  form += "\"/>"
-      "G<input type=\"number\" name=\"s100g2\" min=\"0\" max=\"255\" value=\"";
-  form += eepromData.scale100green2;
-  form += "\"/>"
-      "B<input type=\"number\" name=\"s100b2\" min=\"0\" max=\"255\" value=\"";
-  form += eepromData.scale100blue2;
-  form += "\"/><br/>";
-
-  form += "Scaling (4): "
-      "R<input type=\"number\" name=\"s150r2\" min=\"0\" max=\"255\" value=\"";
-  form += eepromData.scale150red2;
-  form += "\"/>"
-      "G<input type=\"number\" name=\"s150g2\" min=\"0\" max=\"255\" value=\"";
-  form += eepromData.scale150green2;
-  form += "\"/>"
-      "B<input type=\"number\" name=\"s150b2\" min=\"0\" max=\"255\" value=\"";
-  form += eepromData.scale150blue2;
-  form += "\"/><br/>";
-
-  form += "Scaling (5): "
-      "R<input type=\"number\" name=\"s200r2\" min=\"0\" max=\"255\" value=\"";
-  form += eepromData.scale200red2;
-  form += "\"/>"
-      "G<input type=\"number\" name=\"s200g2\" min=\"0\" max=\"255\" value=\"";
-  form += eepromData.scale200green2;
-  form += "\"/>"
-      "B<input type=\"number\" name=\"s200b2\" min=\"0\" max=\"255\" value=\"";
-  form += eepromData.scale200blue2;
   form += "\"/><br/>";
 
   form += "<br/>";
@@ -1592,87 +1417,6 @@ void runConfigUpdateHandler() {
     }
     if (server.argName(i) == "s0b") {
       eepromData.scale0blue = server.arg(i).toInt();
-    }
-    if (server.argName(i) == "s50r") {
-      eepromData.scale50red = server.arg(i).toInt();
-    }
-    if (server.argName(i) == "s50g") {
-      eepromData.scale50green = server.arg(i).toInt();
-    }
-    if (server.argName(i) == "s50b") {
-      eepromData.scale50blue = server.arg(i).toInt();
-    }
-    if (server.argName(i) == "s100r") {
-      eepromData.scale100red = server.arg(i).toInt();
-    }
-    if (server.argName(i) == "s100g") {
-      eepromData.scale100green = server.arg(i).toInt();
-    }
-    if (server.argName(i) == "s100b") {
-      eepromData.scale100blue = server.arg(i).toInt();
-    }
-    if (server.argName(i) == "s150r") {
-      eepromData.scale150red = server.arg(i).toInt();
-    }
-    if (server.argName(i) == "s150g") {
-      eepromData.scale150green = server.arg(i).toInt();
-    }
-    if (server.argName(i) == "s150b") {
-      eepromData.scale150blue = server.arg(i).toInt();
-    }
-    if (server.argName(i) == "s200r") {
-      eepromData.scale200red = server.arg(i).toInt();
-    }
-    if (server.argName(i) == "s200g") {
-      eepromData.scale200green = server.arg(i).toInt();
-    }
-    if (server.argName(i) == "s200b") {
-      eepromData.scale200blue = server.arg(i).toInt();
-    }
-    if (server.argName(i) == "s0r2") {
-      eepromData.scale0red2 = server.arg(i).toInt();
-    }
-    if (server.argName(i) == "s0g2") {
-      eepromData.scale0green2 = server.arg(i).toInt();
-    }
-    if (server.argName(i) == "s0b2") {
-      eepromData.scale0blue2 = server.arg(i).toInt();
-    }
-    if (server.argName(i) == "s50r2") {
-      eepromData.scale50red2 = server.arg(i).toInt();
-    }
-    if (server.argName(i) == "s50g2") {
-      eepromData.scale50green2 = server.arg(i).toInt();
-    }
-    if (server.argName(i) == "s50b2") {
-      eepromData.scale50blue2 = server.arg(i).toInt();
-    }
-    if (server.argName(i) == "s100r2") {
-      eepromData.scale100red2 = server.arg(i).toInt();
-    }
-    if (server.argName(i) == "s100g2") {
-      eepromData.scale100green2 = server.arg(i).toInt();
-    }
-    if (server.argName(i) == "s100b2") {
-      eepromData.scale100blue2 = server.arg(i).toInt();
-    }
-    if (server.argName(i) == "s150r2") {
-      eepromData.scale150red2 = server.arg(i).toInt();
-    }
-    if (server.argName(i) == "s150g2") {
-      eepromData.scale150green2 = server.arg(i).toInt();
-    }
-    if (server.argName(i) == "s150b2") {
-      eepromData.scale150blue2 = server.arg(i).toInt();
-    }
-    if (server.argName(i) == "s200r2") {
-      eepromData.scale200red2 = server.arg(i).toInt();
-    }
-    if (server.argName(i) == "s200g2") {
-      eepromData.scale200green2 = server.arg(i).toInt();
-    }
-    if (server.argName(i) == "s200b2") {
-      eepromData.scale200blue2 = server.arg(i).toInt();
     }
     if (server.argName(i) == "pixelcount") {
       eepromData.pixelcount = server.arg(i).toInt() % MAX_PIXELS;
@@ -1814,8 +1558,7 @@ void configRootHandler() {
   }
   form += "</select><br/>";
 
-  form += "<u>Normal Modes</u><br/>";
-  form += "Scaling (1): "
+  form += "Scaling: "
       "R<input type=\"number\" name=\"s0r\" min=\"0\" max=\"255\" value=\"";
   form += (eepromData.configured == 1 ? eepromData.scale0red : 255);
   form += "\"/>"
@@ -1824,106 +1567,6 @@ void configRootHandler() {
   form += "\"/>"
       "B<input type=\"number\" name=\"s0b\" min=\"0\" max=\"255\" value=\"";
   form += (eepromData.configured == 1 ? eepromData.scale0blue : 255);
-  form += "\"/><br/>";
-
-  form += "Scaling (2): "
-      "R<input type=\"number\" name=\"s50r\" min=\"0\" max=\"255\" value=\"";
-  form += (eepromData.configured == 1 ? eepromData.scale50red : 255);
-  form += "\"/>"
-      "G<input type=\"number\" name=\"s50g\" min=\"0\" max=\"255\" value=\"";
-  form += (eepromData.configured == 1 ? eepromData.scale50green : 255);
-  form += "\"/>"
-      "B<input type=\"number\" name=\"s50b\" min=\"0\" max=\"255\" value=\"";
-  form += (eepromData.configured == 1 ? eepromData.scale50blue : 255);
-  form += "\"/><br/>";
-
-  form += "Scaling (3): "
-      "R<input type=\"number\" name=\"s100r\" min=\"0\" max=\"255\" value=\"";
-  form += (eepromData.configured == 1 ? eepromData.scale100red : 255);
-  form += "\"/>"
-      "G<input type=\"number\" name=\"s100g\" min=\"0\" max=\"255\" value=\"";
-  form += (eepromData.configured == 1 ? eepromData.scale100green : 255);
-  form += "\"/>"
-      "B<input type=\"number\" name=\"s100b\" min=\"0\" max=\"255\" value=\"";
-  form += (eepromData.configured == 1 ? eepromData.scale100blue : 255);
-  form += "\"/><br/>";
-
-  form += "Scaling (4): "
-      "R<input type=\"number\" name=\"s150r\" min=\"0\" max=\"255\" value=\"";
-  form += (eepromData.configured == 1 ? eepromData.scale150red : 255);
-  form += "\"/>"
-      "G<input type=\"number\" name=\"s150g\" min=\"0\" max=\"255\" value=\"";
-  form += (eepromData.configured == 1 ? eepromData.scale150green : 255);
-  form += "\"/>"
-      "B<input type=\"number\" name=\"s150b\" min=\"0\" max=\"255\" value=\"";
-  form += (eepromData.configured == 1 ? eepromData.scale150blue : 255);
-  form += "\"/><br/>";
-  
-  form += "Scaling (5): "
-      "R<input type=\"number\" name=\"s200r\" min=\"0\" max=\"255\" value=\"";
-  form += (eepromData.configured == 1 ? eepromData.scale200red : 255);
-  form += "\"/>"
-      "G<input type=\"number\" name=\"s200g\" min=\"0\" max=\"255\" value=\"";
-  form += (eepromData.configured == 1 ? eepromData.scale200green : 255);
-  form += "\"/>"
-      "B<input type=\"number\" name=\"s200b\" min=\"0\" max=\"255\" value=\"";
-  form += (eepromData.configured == 1 ? eepromData.scale200blue : 255);
-  form += "\"/><br/>";
-
-  form += "<u>HDR Modes</u><br/>";
-  form += "Scaling (1): "
-      "R<input type=\"number\" name=\"s0r2\" min=\"0\" max=\"255\" value=\"";
-  form += (eepromData.configured == 1 ? eepromData.scale0red2 : 255);
-  form += "\"/>"
-      "G<input type=\"number\" name=\"s0g2\" min=\"0\" max=\"255\" value=\"";
-  form += (eepromData.configured == 1 ? eepromData.scale0green2 : 255);
-  form += "\"/>"
-      "B<input type=\"number\" name=\"s0b2\" min=\"0\" max=\"255\" value=\"";
-  form += (eepromData.configured == 1 ? eepromData.scale0blue2 : 255);
-  form += "\"/><br/>";
-
-  form += "Scaling (2): "
-      "R<input type=\"number\" name=\"s50r2\" min=\"0\" max=\"255\" value=\"";
-  form += (eepromData.configured == 1 ? eepromData.scale50red2 : 255);
-  form += "\"/>"
-      "G<input type=\"number\" name=\"s50g2\" min=\"0\" max=\"255\" value=\"";
-  form += (eepromData.configured == 1 ? eepromData.scale50green2 : 255);
-  form += "\"/>"
-      "B<input type=\"number\" name=\"s50b2\" min=\"0\" max=\"255\" value=\"";
-  form += (eepromData.configured == 1 ? eepromData.scale50blue2 : 255);
-  form += "\"/><br/>";
-
-  form += "Scaling (3): "
-      "R<input type=\"number\" name=\"s100r2\" min=\"0\" max=\"255\" value=\"";
-  form += (eepromData.configured == 1 ? eepromData.scale100red2 : 255);
-  form += "\"/>"
-      "G<input type=\"number\" name=\"s100g2\" min=\"0\" max=\"255\" value=\"";
-  form += (eepromData.configured == 1 ? eepromData.scale100green2 : 255);
-  form += "\"/>"
-      "B<input type=\"number\" name=\"s100b2\" min=\"0\" max=\"255\" value=\"";
-  form += (eepromData.configured == 1 ? eepromData.scale100blue2 : 255);
-  form += "\"/><br/>";
-
-  form += "Scaling (4): "
-      "R<input type=\"number\" name=\"s150r2\" min=\"0\" max=\"255\" value=\"";
-  form += (eepromData.configured == 1 ? eepromData.scale150red2 : 255);
-  form += "\"/>"
-      "G<input type=\"number\" name=\"s150g2\" min=\"0\" max=\"255\" value=\"";
-  form += (eepromData.configured == 1 ? eepromData.scale150green2 : 255);
-  form += "\"/>"
-      "B<input type=\"number\" name=\"s150b2\" min=\"0\" max=\"255\" value=\"";
-  form += (eepromData.configured == 1 ? eepromData.scale150blue2 : 255);
-  form += "\"/><br/>";
-
-  form += "Scaling (5): "
-      "R<input type=\"number\" name=\"s200r2\" min=\"0\" max=\"255\" value=\"";
-  form += (eepromData.configured == 1 ? eepromData.scale200red2 : 255);
-  form += "\"/>"
-      "G<input type=\"number\" name=\"s200g2\" min=\"0\" max=\"255\" value=\"";
-  form += (eepromData.configured == 1 ? eepromData.scale200green2 : 255);
-  form += "\"/>"
-      "B<input type=\"number\" name=\"s200b2\" min=\"0\" max=\"255\" value=\"";
-  form += (eepromData.configured == 1 ? eepromData.scale200blue2 : 255);
   form += "\"/><br/>";
 
   form += "Default Mode: <input type=\"number\" name=\"defaultmode\" min=\"0\" max=\"255\" value=\"";
@@ -1961,87 +1604,6 @@ void configUpdateHandler() {
     }
     if (server.argName(i) == "s0b") {
       eepromData.scale0blue = server.arg(i).toInt();
-    }
-    if (server.argName(i) == "s50r") {
-      eepromData.scale50red = server.arg(i).toInt();
-    }
-    if (server.argName(i) == "s50g") {
-      eepromData.scale50green = server.arg(i).toInt();
-    }
-    if (server.argName(i) == "s50b") {
-      eepromData.scale50blue = server.arg(i).toInt();
-    }
-    if (server.argName(i) == "s100r") {
-      eepromData.scale100red = server.arg(i).toInt();
-    }
-    if (server.argName(i) == "s100g") {
-      eepromData.scale100green = server.arg(i).toInt();
-    }
-    if (server.argName(i) == "s100b") {
-      eepromData.scale100blue = server.arg(i).toInt();
-    }
-    if (server.argName(i) == "s150r") {
-      eepromData.scale150red = server.arg(i).toInt();
-    }
-    if (server.argName(i) == "s150g") {
-      eepromData.scale150green = server.arg(i).toInt();
-    }
-    if (server.argName(i) == "s150b") {
-      eepromData.scale150blue = server.arg(i).toInt();
-    }
-    if (server.argName(i) == "s200r") {
-      eepromData.scale200red = server.arg(i).toInt();
-    }
-    if (server.argName(i) == "s200g") {
-      eepromData.scale200green = server.arg(i).toInt();
-    }
-    if (server.argName(i) == "s200b") {
-      eepromData.scale200blue = server.arg(i).toInt();
-    }
-    if (server.argName(i) == "s0r2") {
-      eepromData.scale0red2 = server.arg(i).toInt();
-    }
-    if (server.argName(i) == "s0g2") {
-      eepromData.scale0green2 = server.arg(i).toInt();
-    }
-    if (server.argName(i) == "s0b2") {
-      eepromData.scale0blue2 = server.arg(i).toInt();
-    }
-    if (server.argName(i) == "s50r2") {
-      eepromData.scale50red2 = server.arg(i).toInt();
-    }
-    if (server.argName(i) == "s50g2") {
-      eepromData.scale50green2 = server.arg(i).toInt();
-    }
-    if (server.argName(i) == "s50b2") {
-      eepromData.scale50blue2 = server.arg(i).toInt();
-    }
-    if (server.argName(i) == "s100r2") {
-      eepromData.scale100red2 = server.arg(i).toInt();
-    }
-    if (server.argName(i) == "s100g2") {
-      eepromData.scale100green2 = server.arg(i).toInt();
-    }
-    if (server.argName(i) == "s100b2") {
-      eepromData.scale100blue2 = server.arg(i).toInt();
-    }
-    if (server.argName(i) == "s150r2") {
-      eepromData.scale150red2 = server.arg(i).toInt();
-    }
-    if (server.argName(i) == "s150g2") {
-      eepromData.scale150green2 = server.arg(i).toInt();
-    }
-    if (server.argName(i) == "s150b2") {
-      eepromData.scale150blue2 = server.arg(i).toInt();
-    }
-    if (server.argName(i) == "s200r2") {
-      eepromData.scale200red2 = server.arg(i).toInt();
-    }
-    if (server.argName(i) == "s200g2") {
-      eepromData.scale200green2 = server.arg(i).toInt();
-    }
-    if (server.argName(i) == "s200b2") {
-      eepromData.scale200blue2 = server.arg(i).toInt();
     }
     if (server.argName(i) == "defaultmode") {
       eepromData.defaultmode = server.arg(i).toInt();
