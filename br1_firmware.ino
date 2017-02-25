@@ -71,6 +71,7 @@ const char *modeNames[255] = { "Black", "Red", "Green", "Yellow", "Blue", "Magen
   "Burst  (3x, 7 colours)", "Burst  (3x, 10 colours)", "Burst  (3x, 14 colours)", "Burst  (3x, 20 colours)",
   "Burst  (4x, 7 colours)", "Burst  (4x, 10 colours)", "Burst  (4x, 14 colours)", "Burst  (4x, 20 colours)",
   "Burst  (5x, 7 colours)", "Burst  (5x, 10 colours)", "Burst  (5x, 14 colours)", "Burst  (5x, 20 colours)",
+  "Rainbow Twinkle",
   NULL };
 
 struct EepromData {
@@ -391,7 +392,7 @@ void redNightLight() {
 //  s is saturation value, double between 0 and 1
 //  v is value, double between 0 and 1
 // http://splinter.com.au/blog/?p=29
-RgbColor ledHSV(int h, double s, double v, int pos) {
+RgbColor ledHSV(int h, double s, double v, int pos, bool hdr) {
   double r = 0;
   double g = 0;
   double b = 0;
@@ -442,16 +443,26 @@ RgbColor ledHSV(int h, double s, double v, int pos) {
   int green = constrain((int)255 * g, 0, 255);
   int blue = constrain((int)255 * b, 0, 255);
 
-  return RgbColor(red * scalered[pos] / 255,
-                      green * scalegreen[pos] / 255,
-                      blue * scaleblue[pos] / 255);
+  if (hdr) {
+    return RgbColor(red * scalered2[pos] / 255,
+                        green * scalegreen2[pos] / 255,
+                        blue * scaleblue2[pos] / 255);
+  } else {
+    return RgbColor(red * scalered[pos] / 255,
+                        green * scalegreen[pos] / 255,
+                        blue * scaleblue[pos] / 255);
+  }
 }
 
 RgbColor ledExpHSV(int h, double s, double v, int pos) {
+  return ledExpHSV(h, s, v, pos, false);
+}
+
+RgbColor ledExpHSV(int h, double s, double v, int pos, bool hdr) {
   if (h < (HUE_EXP_TIMES * HUE_EXP_RANGE))
-    return ledHSV(h / HUE_EXP_TIMES, s, v, pos);
+    return ledHSV(h / HUE_EXP_TIMES, s, v, pos, hdr);
   else
-    return ledHSV(h - ((HUE_EXP_TIMES - 1) * HUE_EXP_RANGE), s, v, pos);
+    return ledHSV(h - ((HUE_EXP_TIMES - 1) * HUE_EXP_RANGE), s, v, pos, hdr);
 }
 
 void hsvFade() {
@@ -980,6 +991,19 @@ void burst(unsigned int bursts, unsigned int colours) {
         if (pos[i] >= eepromData.pixelcount + pSide) {
           pos[i] = 0 - pSide;
           hue[i] = (hue[i] + (HUE_EXP_MAX / colours) * bursts) % HUE_EXP_MAX;
+          Serial.print("Burst ");
+          Serial.print(i, DEC);
+          Serial.print(" restarted, pos[] = { ");
+          for (int j = 0; j < bursts; j++) {
+              if (j > 0)
+                Serial.print(", ");
+            Serial.print(pos[j], DEC);
+            if (active[i])
+              Serial.print("*");
+            else
+              Serial.print(".");
+          }
+          Serial.println(" }");
         } else {
           pos[i]++;
         }
@@ -1042,6 +1066,78 @@ void random_full(RgbColor (*makeRandom)(int), unsigned long interval) {
     }
     pixels.Show();
     lastChange = millis();
+  }
+}
+
+void rainbow_twinkle(unsigned long interval, uint8_t low, uint8_t high, uint8_t step) {
+  static unsigned long lastChange = 0;
+  static unsigned long lastPulse = 0;
+  static uint8_t levels[MAX_PIXELS];
+  static uint8_t current[MAX_PIXELS];
+  static uint16_t hues[MAX_PIXELS];
+  unsigned long pulseInterval = interval / multiplier;
+  unsigned long changeInterval = 10;
+  boolean refresh = false;
+
+  if (ledModeChanged) {
+    for (int i = 0; i < eepromData.pixelcount; i++) {
+      levels[i] = low;
+      current[i] = 0;
+      hues[i] = 0;
+    }
+    refresh = true;
+    lastChange = millis();
+    lastPulse = millis();
+    ledModeChanged = false;
+  }
+
+  if (millis() - lastPulse > pulseInterval) {
+    for (int i = 0; i < 10; i++) {
+      int target = random(0, eepromData.pixelcount);
+      if (current[target] == 0 && levels[target] == low) {
+        current[target] = 1;
+        hues[target] = random(0, HUE_EXP_MAX);
+        break;
+      }
+    }
+    lastPulse = millis();
+  }
+
+  if (millis() - lastChange > changeInterval) {
+    for (int i = 0; i < eepromData.pixelcount; i++) {
+      if (current[i] == 1) {
+        // this pixel is rising
+        if (levels[i] + step > high) {
+          // the pixel has reached maximum
+          levels[i] = high;
+          current[i] = 0;
+        } else {
+          levels[i] = levels[i] + step;
+        }
+      } else if (levels[i] > low) {
+        // this pixel is falling
+        if (levels[i] - step < low) {
+          levels[i] = low;
+        } else {
+          levels[i] = levels[i] - step;
+        }
+      }
+    }
+    lastChange = millis();
+    refresh = true;
+  }
+
+  if (refresh) {
+    for (int i = 0; i < eepromData.pixelcount; i++) {
+      double s;
+      double v;
+
+      s = (double)(levels[i] - low) / (double)(high - low);
+      v = levels[i] / 255.0f;
+
+      pixels.SetPixelColor(i, ledExpHSV(hues[i], s, v, i, true));
+    }
+    pixels.Show();
   }
 }
 
@@ -1241,6 +1337,9 @@ void ledLoop() {
     break;
   case 61:
     burst(5, 20);
+    break;
+  case 62:
+    rainbow_twinkle(100, 50, 255, 5);
     break;
   case 255:
     // network mode - no action
